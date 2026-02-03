@@ -1,6 +1,6 @@
-# OPEN_ALO - Linux Desktop Automation for AI Agents
+# Open ALO - Desktop Automation for Linux
 
-**Modern desktop automation SDK for Linux with single-permission UX**
+**Desktop Automation for Linux with Single-Permission UX**
 
 > *"ALO" means "light" in Bengali — This project is dedicated to my maternal grandmother, whom we lovingly called Alo.*
 

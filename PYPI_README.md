@@ -1,6 +1,6 @@
-# open-alo-core
+# Open ALO
 
-**Modern Linux Desktop Automation SDK with Single-Permission UX**
+**Desktop Automation for Linux**
 
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-Linux-green.svg)](https://www.linux.org/)
