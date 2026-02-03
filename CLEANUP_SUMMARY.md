@@ -12,7 +12,7 @@ Moved old implementation to `archive/` folder:
 
 **`archive/examples/`** - Legacy examples
 - agent_example.py
-- persistent_session_example.py  
+- persistent_session_example.py
 - focus_and_type.py, focus_and_type_v2.py
 - click_automation.py, keyboard_shortcuts.py
 - screenshot_automation.py, workflow_automation.py
@@ -114,7 +114,7 @@ from open_alo_core import UnifiedRemoteDesktop, Point
 
 with UnifiedRemoteDesktop() as remote:
     remote.initialize(persist_mode=2, enable_capture=True)
-    
+
     # All capabilities in one class
     screenshot = remote.capture_screenshot()
     remote.type_text("Hello!")
@@ -142,6 +142,6 @@ With clean structure in place, ready for:
 
 ---
 
-**Cleanup Date:** February 3, 2026
+**Cleanup Date:** February 2026
 **Status:** ✅ Complete
 **Archive Location:** `archive/` folder

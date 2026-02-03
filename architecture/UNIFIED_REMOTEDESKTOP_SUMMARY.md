@@ -1,41 +1,43 @@
-# Unified Remote Desktop Implementation Summary
+# UnifiedRemoteDesktop Implementation
 
 ## Overview
 
-Successfully implemented **UnifiedRemoteDesktop** - a single-permission approach for AI agent automation on Wayland, matching the UX of professional remote desktop tools like RustDesk.
+The UnifiedRemoteDesktop class provides single-permission desktop automation on Wayland through the XDG RemoteDesktop portal. This implementation consolidates screen capture and input control capabilities that previously required two separate permission dialogs.
 
-## What Was Built
+**Implementation Date:** February 2026
 
-### 1. Core Implementation
+## Architecture
 
-**File:** `open_alo_core/src/open_alo_core/wayland/unified.py`
+### Core Implementation
 
-- **Class:** `UnifiedRemoteDesktop`
-- **Size:** ~860 lines
-- **Key Feature:** ONE permission dialog for both input AND screen capture
+**Location:** `src/open_alo_core/wayland/unified.py`
 
-#### Capabilities
+**Class:** `UnifiedRemoteDesktop` (~860 lines)
 
-**Input Control:**
-- `click(point, button)` - Mouse click at specific coordinates
-- `move_mouse(point)` - Move mouse cursor
-- `type_text(text, interval)` - Type text with optional delay
-- `press_key(key)` - Press single key
-- `key_combo(keys)` - Execute keyboard shortcuts (e.g., Ctrl+C)
+**Primary Feature:** Single permission dialog for both input and screen capture
 
-**Screen Capture:**
-- `capture_screenshot()` - Take PNG screenshot
-- `get_frame()` - Get real-time frame from video stream
-- `get_screen_size()` - Get screen resolution
+### API Surface
+
+**Input Control Methods:**
+- `click(point: Point, button: int)` — Perform mouse click
+- `move_mouse(point: Point)` — Move cursor to position
+- `type_text(text: str, interval: float)` — Type text with configurable delay
+- `press_key(key: int)` — Press individual key
+- `key_combo(keys: List[int])` — Execute keyboard shortcuts
+
+**Screen Capture Methods:**
+- `capture_screenshot() -> bytes` — Capture PNG screenshot
+- `get_frame() -> bytes` — Extract real-time PNG frame from video stream
+- `get_screen_size() -> Tuple[int, int]` — Query screen resolution
 
 **Session Management:**
-- `initialize(persist_mode, enable_capture)` - One-time setup
-- `close()` - Clean shutdown
-- Context manager support (`with` statement)
+- `initialize(persist_mode: int, enable_capture: bool) -> bool` — Initialize session
+- `close()` — Clean session teardown
+- Context manager protocol (`__enter__`, `__exit__`)
 
-### 2. Technical Architecture
+## Portal Integration
 
-#### Portal Usage
+### D-Bus Interface Hierarchy
 
 ```
 RemoteDesktop Portal (org.freedesktop.portal.RemoteDesktop)

@@ -25,8 +25,8 @@ with UnifiedRemoteDesktop() as remote:
 
 ```python
 remote.initialize(
-    persist_mode=2,        # 0=never, 1=session, 2=permanent
-    enable_capture=True    # Enable screen capture (True for AI agents)
+    persist_mode=2,        # 0=transient, 1=session, 2=persistent
+    enable_capture=True    # Enable screen capture (required for AI agents)
 ) -> bool
 ```
 
@@ -313,65 +313,34 @@ with UnifiedRemoteDesktop() as remote:
 /usr/bin/python3 examples/unified_debug.py
 ```
 
-## Troubleshooting
+## Common Patterns
 
-### "No such method SelectSources"
-Fixed in current version - uses correct ScreenCast interface for source selection.
-
-### "Failed to initialize"
-Check:
-1. Running on Wayland (not X11)
-2. XDG Desktop Portal installed
-3. Permission not denied by user
-4. Run with `--verbose` for details
-
-### "cannot unpack non-iterable NoneType" on get_screen_size()
-Ensure `enable_capture=True` in `initialize()`.
-
-### Typed text not appearing
-1. Check window is focused: `wm.activate(window_id)` + `time.sleep(0.3)`
-2. Try slower typing: `interval=0.1`
-
-### Screenshot is blank/black
-Portal may not have screen access. Check portal permissions:
-```bash
-flatpak permissions | grep desktop-portal
-```
-
-## Migration from Old API
-
-### Before (Two Dialogs)
+### Migrating from Two-Class API
 ```python
+# Legacy approach (two permission dialogs)
 with WaylandInput() as input_ctrl:
-    input_ctrl.initialize()  # Dialog 1
-
+    input_ctrl.initialize()
     with WaylandCapture() as capture:
-        capture.initialize()  # Dialog 2
-
+        capture.initialize()
         data = capture.capture_screenshot()
         input_ctrl.type_text("Hello")
-```
 
-### After (One Dialog)
-```python
+# Unified approach (single permission dialog)
 with UnifiedRemoteDesktop() as remote:
-    remote.initialize(enable_capture=True)  # Dialog 1 only!
-
+    remote.initialize(enable_capture=True)
     data = remote.capture_screenshot()
     remote.type_text("Hello")
 ```
 
-Methods have identical signatures - just combine the two classes.
+Method signatures remain identical when migrating.
 
-## See Also
+## Reference Documentation
 
-- [Complete API Reference](../open_alo_core/API_REFERENCE.md)
-- [Migration Guide](./MIGRATION_TO_UNIFIED.md)
-- [Implementation Summary](./UNIFIED_REMOTEDESKTOP_SUMMARY.md)
+- [Complete API Reference](../API_REFERENCE.md)
+- [Migration Guide](MIGRATION_TO_UNIFIED.md)
+- [Window Management API](WINDOW_MANAGEMENT_API.md)
 - [Examples](../examples/)
 
 ---
 
-**Version:** open_alo_core v0.1.0
-**Status:** Production Ready
-**Recommended:** For all new AI agent development
+**Version:** open_alo_core 0.1.0

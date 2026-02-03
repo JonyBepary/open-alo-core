@@ -8,6 +8,8 @@ global-exclude __pycache__
 global-exclude .DS_Store
 recursive-include src *.pyi
 prune tests
+prune assets
+prune examples
 prune __pycache__
 global-exclude *.pyc
 global-exclude *.pyo

@@ -1,6 +1,6 @@
-# Open ALO - Desktop Automation for Linux
+# Open ALO — Desktop Automation for Linux
 
-**Desktop Automation for Linux with Single-Permission UX**
+**Modern Linux desktop automation SDK with Wayland support**
 
 > *"ALO" means "light" in Bengali — This project is dedicated to my maternal grandmother, whom we lovingly called Alo.*
 
@@ -9,22 +9,31 @@
 [![Wayland](https://img.shields.io/badge/Wayland-Native-brightgreen.svg)](https://wayland.freedesktop.org/)
 [![License](https://img.shields.io/badge/license-MIT-yellow.svg)](./LICENSE)
 
----
+## ⚠️ Prerequisites
 
-## 🌟 Features
+- **Operating System:** Linux with Wayland compositor (GNOME, KDE Plasma, Sway)
+- **Display Server:** Wayland (X11 is not supported)
+- **Python:** 3.10 or higher
+- **Desktop Environment:** GNOME Shell recommended (KDE support experimental)
 
-- **✅ Single Permission Dialog** - One approval for both input and screen capture (like RustDesk)
-- **✅ Real-time Screen Streaming** - Live frames for AI agents
-- **✅ Input Control** - Mouse, keyboard, shortcuts
-- **✅ Window Management** - Find, activate, control windows
-- **✅ Persistent Sessions** - Approve once, run forever
-- **✅ Wayland Native** - Uses XDG Portals, PipeWire, GStreamer
-- **✅ Type-Safe** - Full type hints and modern Python
-- **✅ AI-Ready** - Perfect for screen-reading agents
+**This library does not work on X11. Wayland is required.**
 
 ---
 
-## 🚀 Quick Start
+## Features
+
+- **Single Permission Architecture** — One approval for both input and screen capture
+- **Real-time Screen Streaming** — Live video frames via PipeWire
+- **Input Control** — Mouse movement, clicks, keyboard input, shortcuts
+- **Window Management** — Query, focus, and control application windows
+- **Persistent Sessions** — Optional permission persistence across restarts
+- **Wayland Native** — Built on XDG Portals, PipeWire, and GStreamer
+- **Type-Safe API** — Complete type hints for Python 3.10+
+- **AI Agent Ready** — Designed for autonomous desktop automation
+
+---
+
+## Quick Start
 
 ### Installation
 
@@ -73,7 +82,7 @@ wm.activate(editor.id)
 
 ---
 
-## 🎯 Examples
+## Examples
 
 ```bash
 # Minimal example - Quick start
@@ -90,16 +99,16 @@ See [examples/README.md](examples/README.md) for details.
 
 ---
 
-## 📖 Documentation
+## Documentation
 
-- **[API Reference](open_alo_core/API_REFERENCE.md)** - Complete API documentation
-- **[Quick Reference](docs/UNIFIED_QUICK_REFERENCE.md)** - Common patterns and examples
-- **[Migration Guide](docs/MIGRATION_TO_UNIFIED.md)** - Upgrade from legacy API
-- **[Implementation Details](docs/UNIFIED_REMOTEDESKTOP_SUMMARY.md)** - Technical deep dive
+- **[API Reference](API_REFERENCE.md)** — Complete API documentation
+- **[Quick Reference](docs/UNIFIED_QUICK_REFERENCE.md)** — Common patterns and usage examples
+- **[Migration Guide](docs/MIGRATION_TO_UNIFIED.md)** — Upgrading from the legacy two-permission API
+- **[Window Management API](docs/WINDOW_MANAGEMENT_API.md)** — GNOME window control reference
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 open_alo_core/
@@ -120,7 +129,7 @@ open_alo_core/
 
 ---
 
-## 🤖 AI Agent Example
+## AI Agent Example
 
 ```python
 from open_alo_core import UnifiedRemoteDesktop, Point
@@ -144,36 +153,36 @@ with UnifiedRemoteDesktop() as remote:
 
 ---
 
-## 🆚 Why UnifiedRemoteDesktop?
+## Why UnifiedRemoteDesktop?
 
-### Old Approach (Legacy)
+### Legacy Two-Permission Approach
 ```python
-# TWO permission dialogs ❌
+# Required two separate permission dialogs
 with WaylandInput() as input:
-    input.initialize()  # Dialog 1
+    input.initialize()  # Permission dialog 1
     with WaylandCapture() as capture:
-        capture.initialize()  # Dialog 2
-        # Use both...
+        capture.initialize()  # Permission dialog 2
+        # Both instances required
 ```
 
-### New Approach (Unified)
+### Unified Single-Permission Approach
 ```python
-# ONE permission dialog ✅
+# Single permission dialog
 with UnifiedRemoteDesktop() as remote:
-    remote.initialize(enable_capture=True)  # Dialog 1 only!
-    # Everything available
+    remote.initialize(enable_capture=True)  # One permission
+    # All functionality available
 ```
 
-**Benefits:**
-- ✅ Better UX (one dialog like RustDesk)
-- ✅ Simpler code (single class)
-- ✅ Industry standard approach
-- ✅ Perfect for AI agents
+**Advantages:**
+- Reduced user friction (matches RustDesk, TeamViewer UX)
+- Simplified API surface (single class)
+- Industry-standard remote desktop pattern
+- Optimized for automated workflows
 
-## 📦 What's Inside
+## Package Structure
 
-### `open_alo_core/` - Modern SDK (v0.1.0) ⭐
-**Recommended for all new development**
+### `open_alo_core/` — Core SDK (v0.1.0)
+**Primary API for all new projects**
 
 - `UnifiedRemoteDesktop` - Single permission for input + capture
 - `WindowManager` - Comprehensive window control
@@ -201,7 +210,7 @@ See [archive/README.md](archive/README.md) for migration details.
 
 ---
 
-## 🛠️ System Requirements
+## System Requirements
 
 - **OS**: Linux with Wayland compositor (GNOME, KDE, Sway)
 - **Python**: 3.10+
@@ -222,34 +231,25 @@ See [archive/README.md](archive/README.md) for migration details.
 - Wayland + GNOME Shell / Unity
 - Window Calls extension v13+
 
----
-
-## 📚 Documentation
-
-- **[API Reference](API_REFERENCE.md)** - Complete API docs
-- **[Quick Reference](docs/UNIFIED_QUICK_REFERENCE.md)** - Common patterns
-- **[Examples Guide](examples/README.md)** - All examples
-- **[Migration Guide](docs/MIGRATION_TO_UNIFIED.md)** - Upgrade from legacy
-
-Technical deep dives:
-- [UnifiedRemoteDesktop Approach](docs/UNIFIED_REMOTEDESKTOP_APPROACH.md)
-- [Implementation Summary](docs/UNIFIED_REMOTEDESKTOP_SUMMARY.md)
+For architecture and implementation details, see:
+- [Architecture Documentation](architecture/UNIFIED_REMOTEDESKTOP_APPROACH.md)
+- [Implementation Summary](architecture/UNIFIED_REMOTEDESKTOP_SUMMARY.md)
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions welcome! This project will be open-sourced soon.
 
 ---
 
-## 📜 License
+## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **RustDesk** - Inspiration for single-permission approach
 - **XDG Portals** - Secure desktop integration
@@ -258,7 +258,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-## 💫 In Loving Memory
+## In Loving Memory
 
 *This project is dedicated to my maternal grandmother, **Alo** — whose name means "light" in Bengali.*
 

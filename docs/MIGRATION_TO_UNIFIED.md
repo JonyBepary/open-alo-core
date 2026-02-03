@@ -25,13 +25,13 @@ with WaylandInput() as input_ctrl:
         input_ctrl.type_text("Hello")
 ```
 
-**Problems:**
-- ❌ Two separate permission dialogs (annoying UX)
-- ❌ Two portal sessions to manage
-- ❌ More complex code
-- ❌ Harder to recover if one fails
+**Limitations of the Two-Permission Approach:**
+- Requires two separate user interactions for full functionality
+- Maintains two independent portal sessions
+- Increased code complexity for session management
+- Independent failure modes for each session
 
-### New Approach (Single Permission)
+### Unified Approach (Single Permission)
 ```python
 from open_alo_core import UnifiedRemoteDesktop
 
@@ -44,11 +44,11 @@ with UnifiedRemoteDesktop() as remote:
     remote.type_text("Hello")
 ```
 
-**Benefits:**
-- ✅ One permission dialog (better UX)
-- ✅ Single session (simpler)
-- ✅ Less code
-- ✅ Same approach as RustDesk, AnyDesk, etc.
+**Advantages:**
+- Single permission dialog improves user workflow
+- Unified session lifecycle simplifies error handling
+- Reduced API surface area
+- Matches industry-standard remote desktop implementations (RustDesk, TeamViewer)
 
 ## API Mapping
 
@@ -71,7 +71,7 @@ from open_alo_core import UnifiedRemoteDesktop
 
 remote = UnifiedRemoteDesktop()
 remote.initialize(
-    persist_mode=2,        # Persistent session (optional)
+    persist_mode=2,        # 2=persistent (until revoked)
     enable_capture=True    # Enable screen capture
 )
 ```
@@ -94,7 +94,7 @@ remote.click(Point(100, 200), button=1)
 remote.move_mouse(Point(500, 500))
 ```
 
-✅ **Same API** - no changes needed!
+**API unchanged** — no modifications required.
 
 ### Keyboard Control
 
@@ -122,7 +122,7 @@ remote.press_key(28)  # Enter
 remote.key_combo([29, 45])  # Ctrl+X
 ```
 
-✅ **Same API** - no changes needed!
+**API unchanged** — no modifications required.
 
 ### Screen Capture
 
@@ -150,7 +150,7 @@ frame_data = remote.get_frame()
 width, height = remote.get_screen_size()
 ```
 
-✅ **Same API** - no changes needed!
+**API unchanged** — no modifications required.
 
 ### Context Managers
 

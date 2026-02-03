@@ -193,14 +193,14 @@ UnifiedRemoteDesktop(token_path: Optional[Path] = None)
 
 ##### `initialize(persist_mode: int = 2, enable_capture: bool = True) -> bool`
 
-Initialize unified remote desktop session. Shows ONE permission dialog for both input and capture.
+Initialize remote desktop session with a single permission dialog for both input and capture.
 
 **Parameters:**
-- `persist_mode` (int): Permission persistence
-  - `0` = Ask every time (testing)
-  - `1` = Persist during app session
-  - `2` = Persist until revoked (recommended)
-- `enable_capture` (bool): Enable screen capture capabilities. Set `True` for AI agents.
+- `persist_mode` (int): Permission persistence behavior
+  - `0` = Transient (request permission each time)
+  - `1` = Session (persist until application terminates)
+  - `2` = Persistent (persist until explicitly revoked; recommended)
+- `enable_capture` (bool): Enable screen capture capabilities (required for AI agents)
 
 **Returns:**
 - `bool`: True if initialization succeeded
@@ -412,13 +412,13 @@ ctrl.initialize(persist_mode=0)
 
 ##### `initialize(persist_mode: int = 0) -> None`
 
-Initialize portal session and request permissions.
+Initialize portal session and request input permissions.
 
 **Parameters:**
-- `persist_mode` (int):
-  - `0`: Never persist (dialog every time)
-  - `1`: Persist while app running
-  - `2`: Persist until revoked (recommended)
+- `persist_mode` (int): Permission persistence behavior
+  - `0` = Transient (request permission each time)
+  - `1` = Session (persist until application terminates)
+  - `2` = Persistent (persist until explicitly revoked; recommended)
 
 **Raises:**
 - `PermissionDenied`: User denied permission

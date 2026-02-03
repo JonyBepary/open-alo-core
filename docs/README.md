@@ -90,5 +90,5 @@ Historical documentation moved to [archive/docs/](../archive/docs/):
 
 ---
 
-**Last Updated:** February 3, 2026
+**Last Updated:** February 2026
 **Version:** open_alo_core v0.1.0
