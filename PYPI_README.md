@@ -2,7 +2,7 @@
 
 **Desktop Automation for Linux**
 
-[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-Linux-green.svg)](https://www.linux.org/)
 [![Wayland](https://img.shields.io/badge/Wayland-Native-brightgreen.svg)](https://wayland.freedesktop.org/)
 [![License](https://img.shields.io/badge/license-MIT-yellow.svg)](./LICENSE)
@@ -77,7 +77,7 @@ wm.maximize(editor.id)
 ## 📋 System Requirements
 
 - **OS**: Linux with Wayland (GNOME, KDE, Sway)
-- **Python**: 3.8+
+- **Python**: 3.10+
 - **Dependencies**: PyGObject, GStreamer 1.0, PipeWire
 - **Window Management**: GNOME Shell + [Window Calls extension](https://extensions.gnome.org/extension/4724/window-calls/)
 

@@ -22,7 +22,6 @@ Thank you for your interest in contributing to Open-ALO! 🎉
        xdg-desktop-portal-gnome
 
    # Install package in development mode
-   cd open_alo_core
    pip install -e .
    ```
 
@@ -40,13 +39,13 @@ Thank you for your interest in contributing to Open-ALO! 🎉
 - Add **docstrings** to all public classes/functions
 - Keep functions focused and well-named
 
-See [CODE_STANDARDS.md](open_alo_core/CODE_STANDARDS.md) for details.
+See [CODE_STANDARDS.md](CODE_STANDARDS.md) for details.
 
 ### Testing
 
 ```bash
 # Run structure tests
-cd open_alo_core
+cd tests
 python test_structure.py
 
 # Test imports
@@ -56,7 +55,6 @@ python -c "from open_alo_core import UnifiedRemoteDesktop; print('✅')"
 ### Building
 
 ```bash
-cd open_alo_core
 python -m build
 ```
 

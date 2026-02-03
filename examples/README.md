@@ -160,7 +160,7 @@ pip install -e .
 
 ## Documentation
 
-- [Complete API Reference](../open_alo_core/API_REFERENCE.md)
+- [Complete API Reference](../API_REFERENCE.md)
 - [Quick Reference](../docs/UNIFIED_QUICK_REFERENCE.md)
 - [Migration Guide](../docs/MIGRATION_TO_UNIFIED.md)
 - [Implementation Details](../docs/UNIFIED_REMOTEDESKTOP_SUMMARY.md)

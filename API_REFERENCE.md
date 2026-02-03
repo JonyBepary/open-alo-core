@@ -54,7 +54,7 @@ open_alo_core/
 ### System Requirements
 
 - **OS**: Linux with Wayland compositor (GNOME Shell, KDE Plasma, Sway, etc.)
-- **Python**: 3.8+
+- **Python**: 3.10+
 - **Dependencies**:
   - PyGObject (python3-gi)
   - GStreamer 1.0 (for capture)

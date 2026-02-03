@@ -23,8 +23,8 @@ ls -lh dist/
 ```
 
 This creates:
-- `dist/open_alo_core-0.1.0.tar.gz` - Source distribution
-- `dist/open_alo_core-0.1.0-py3-none-any.whl` - Wheel distribution
+- `dist/open-alo-core-0.1.0.tar.gz` - Source distribution
+- `dist/open-alo-core-0.1.0-py3-none-any.whl` - Wheel distribution
 
 ## Test Package Locally
 
@@ -32,7 +32,7 @@ This creates:
 # Install in virtual environment
 python -m venv test_env
 source test_env/bin/activate
-pip install dist/open_alo_core-0.1.0-py3-none-any.whl
+pip install dist/open-alo-core-0.1.0-py3-none-any.whl
 
 # Test import
 python -c "from open_alo_core import UnifiedRemoteDesktop; print('✅ Import successful')"
@@ -160,7 +160,7 @@ pip install PyGObject>=3.40.0
 
 1. **Package name**: `open-alo-core` (with hyphens for PyPI)
 2. **Import name**: `open_alo_core` (with underscores for Python)
-3. **Minimum Python**: 3.8+
+3. **Minimum Python**: 3.10+
 4. **System dependencies**: Must be installed separately (PyGObject, GStreamer, PipeWire)
 5. **GitHub URLs**: Update before publishing!
 

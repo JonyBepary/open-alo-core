@@ -10,7 +10,7 @@ Shows basic screenshot + input in ~20 lines.
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "open_alo_core" / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from open_alo_core import UnifiedRemoteDesktop, Point
 

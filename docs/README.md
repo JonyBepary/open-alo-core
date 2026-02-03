@@ -12,7 +12,7 @@ Documentation for **open_alo_core** - Modern Linux desktop automation SDK.
 - Common patterns
 - Troubleshooting
 
-### [API Reference](../open_alo_core/API_REFERENCE.md)
+### [API Reference](../API_REFERENCE.md)
 Complete API documentation for all classes and methods:
 - `UnifiedRemoteDesktop` (recommended)
 - `WaylandInput`, `WaylandCapture` (legacy)
@@ -78,7 +78,7 @@ Historical documentation moved to [archive/docs/](../archive/docs/):
 **Getting Started:**
 1. [Quick Reference](UNIFIED_QUICK_REFERENCE.md) - Common patterns
 2. [Examples](../examples/README.md) - Working code
-3. [API Reference](../open_alo_core/API_REFERENCE.md) - Complete API
+3. [API Reference](../API_REFERENCE.md) - Complete API
 
 **Technical Details:**
 - [Implementation Approach](UNIFIED_REMOTEDESKTOP_APPROACH.md)
