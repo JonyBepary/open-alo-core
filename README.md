@@ -5,6 +5,7 @@
 > *"ALO" means "light" in Bengali — This project is dedicated to my maternal grandmother, whom we lovingly called Alo.*
 
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![PyPI](https://img.shields.io/pypi/v/open-alo-core)](https://pypi.org/project/open-alo-core/)
 [![Platform](https://img.shields.io/badge/platform-Linux-green.svg)](https://www.linux.org/)
 [![Wayland](https://img.shields.io/badge/Wayland-Native-brightgreen.svg)](https://wayland.freedesktop.org/)
 [![License](https://img.shields.io/badge/license-MIT-yellow.svg)](./LICENSE)
@@ -47,8 +48,9 @@ sudo apt install \
     xdg-desktop-portal \
     xdg-desktop-portal-gnome
 
-# Install package
+# Install from PyPI
 pip install open-alo-core
+# https://pypi.org/project/open-alo-core/
 ```
 
 **For Window Management (GNOME only):**

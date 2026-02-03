@@ -35,7 +35,7 @@ sudo apt install \
     xdg-desktop-portal \
     xdg-desktop-portal-gnome
 
-# Install package
+# Install from PyPI
 pip install open-alo-core
 ```
 
