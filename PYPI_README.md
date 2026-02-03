@@ -39,6 +39,10 @@ sudo apt install \
 pip install open-alo-core
 ```
 
+**For Window Management (GNOME only):**
+1. Install [Window Calls extension](https://extensions.gnome.org/extension/4724/window-calls/) from browser
+2. Enable it: `gnome-extensions enable window-calls@domandoman.github.com`
+
 ### Basic Usage
 
 ```python

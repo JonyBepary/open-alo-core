@@ -2,6 +2,8 @@
 
 **Modern desktop automation SDK for Linux with single-permission UX**
 
+> *"ALO" means "light" in Bengali — This project is dedicated to my maternal grandmother, whom we lovingly called Alo.*
+
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-Linux-green.svg)](https://www.linux.org/)
 [![Wayland](https://img.shields.io/badge/Wayland-Native-brightgreen.svg)](https://wayland.freedesktop.org/)
@@ -27,10 +29,6 @@
 ### Installation
 
 ```bash
-# Clone repository
-git clone <repo-url>
-cd OPEN_ALO
-
 # Install system dependencies (Ubuntu/Debian)
 sudo apt install \
     python3-gi \
@@ -41,9 +39,12 @@ sudo apt install \
     xdg-desktop-portal-gnome
 
 # Install package
-cd open_alo_core
-pip install -e .
+pip install open-alo-core
 ```
+
+**For Window Management (GNOME only):**
+1. Install [Window Calls extension](https://extensions.gnome.org/extension/4724/window-calls/) from browser
+2. Enable it: `gnome-extensions enable window-calls@domandoman.github.com`
 
 ### Basic Usage
 
@@ -64,7 +65,7 @@ with UnifiedRemoteDesktop() as remote:
     remote.type_text("Hello World!\n")
     remote.key_combo(["ctrl", "c"])
 
-# Window management (independent)
+# Window management (requires Window Calls extension on GNOME)
 wm = WindowManager()
 editor = wm.find_window("TextEditor")
 wm.activate(editor.id)
@@ -254,3 +255,17 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - **XDG Portals** - Secure desktop integration
 - **PipeWire** - Modern screen capture
 - **GNOME Project** - Window management APIs
+
+---
+
+## 💫 In Loving Memory
+
+*This project is dedicated to my maternal grandmother, **Alo** — whose name means "light" in Bengali.*
+
+She did so much for me throughout my life, but in her final years, I couldn't do as much for her as I wished. After I lost her, I truly realized what I had lost.
+
+The only thing I'm good at is coding. On the morning after her burial, in a moment of grief where the mind tries to distract itself from reality, I vaguely formalized this project. I decided then that it would be dedicated to her.
+
+It's been almost half a year now, and I've finally managed to push a very basic MVP. It may end up buried among my other unfinished projects. It will probably only support GNOME Wayland. But with my current capabilities, perhaps this is all I can dedicate to her memory.
+
+*Rest in peace, Nani.*
