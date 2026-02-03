@@ -20,11 +20,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-
     - name: Install system dependencies
       run: |
         sudo apt-get update
@@ -40,18 +35,18 @@ jobs:
           xdg-desktop-portal \
           xdg-desktop-portal-gtk
 
-    - name: Install package
+    - name: Install package (using system Python)
       run: |
-        pip install --no-deps -e .
+        python3 -m pip install --no-deps -e .
 
     - name: Run structure tests
       run: |
         cd tests
-        python test_structure.py
+        python3 test_structure.py
 
     - name: Test import
       run: |
-        python -c "from open_alo_core import UnifiedRemoteDesktop, WindowManager, Point; print('✅ Import successful')" || echo "Import test skipped (system packages not in pip venv)"
+        python3 -c "from open_alo_core import UnifiedRemoteDesktop, WindowManager, Point; print('✅ Import successful')"
 
   build:
     name: Build Distribution
