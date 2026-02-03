@@ -264,7 +264,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 She did so much for me throughout my life, but in her final years, I couldn't do as much for her as I wished. After I lost her, I truly realized what I had lost.
 
-The only thing I'm good at is coding. On the morning after her burial, in a moment of grief where the mind tries to distract itself from reality, I vaguely formalized this project. I decided then that it would be dedicated to her.
+The only thing I'm good at is coding. On the morning after her burial, in a moment of grief where the mind tries to distract itself from reality, I vaguely outlined this project. I decided then that it would be dedicated to her.
 
 It's been almost half a year now, and I've finally managed to push a very basic MVP. It may end up buried among my other unfinished projects. It will probably only support GNOME Wayland. But with my current capabilities, perhaps this is all I can dedicate to her memory.
 
