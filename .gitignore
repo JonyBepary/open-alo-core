@@ -67,9 +67,13 @@ temp/
 
 # Screenshots from testing
 screenshots/
-*.png
-*.jpg
+/tmp/*.png
+/tmp/*.jpg
+
+# Keep assets
+!assets/
 
 # Token storage (user-specific)
 ~/.config/*
 archive/*
+assets/logo_original.png
