@@ -1,12 +1,11 @@
-<h1 align="center">
-  <img src="assets/logo_icon.svg" alt="Open ALO" width="48" height="48" style="vertical-align: middle;">
-  Open ALO
-</h1>
+<div align="center">
 
-<p align="center">
-  <strong>Desktop Automation for Linux</strong><br>
-  <em>Single permission • Real-time capture • Full control</em>
-</p>
+# <img src="assets/logo_icon.svg" width="36" height="36" alt=""> Open ALO
+
+**Desktop Automation for Linux**
+*Single permission • Real-time capture • Full control*
+
+</div>
 
 <p align="center">
   <a href="https://pypi.org/project/open-alo-core/"><img src="https://img.shields.io/pypi/v/open-alo-core?color=blue&label=PyPI" alt="PyPI"></a>
