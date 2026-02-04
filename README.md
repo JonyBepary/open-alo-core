@@ -1,8 +1,7 @@
-<p align="center">
-  <img src="assets/logo.png" alt="Open ALO" width="400" style="border-radius: 12px;">
-</p>
-
-<h1 align="center">Open ALO</h1>
+<h1 align="center">
+  <img src="assets/logo_icon.svg" alt="Open ALO" width="48" height="48" style="vertical-align: middle;">
+  Open ALO
+</h1>
 
 <p align="center">
   <strong>Desktop Automation for Linux</strong><br>
