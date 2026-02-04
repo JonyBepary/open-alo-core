@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" alt="Open ALO" width="600" style="border-radius: 12px;">
+  <img src="assets/logo.png" alt="Open ALO" width="400" style="border-radius: 12px;">
 </p>
 
 <h1 align="center">Open ALO</h1>
