@@ -514,7 +514,7 @@ class UnifiedRemoteDesktop:
             self._select_sources()
 
         # Start the unified session (shows permission dialog)
-        self._start_session()
+        self._start_session(enable_capture=enable_capture)
 
     def _select_devices(self, persist_mode: int) -> None:
         """Select input devices (keyboard, mouse, touchscreen)"""
@@ -624,7 +624,7 @@ class UnifiedRemoteDesktop:
         if not success:
             raise PermissionDenied("User denied source selection")
 
-    def _start_session(self) -> None:
+    def _start_session(self, enable_capture: bool = True) -> None:
         """Start the unified session - shows permission dialog"""
         loop = GLib.MainLoop()
         streams = None
@@ -665,7 +665,7 @@ class UnifiedRemoteDesktop:
         loop.run()
         self._bus.signal_unsubscribe(sub_id)
 
-        if streams is None:
+        if enable_capture and streams is None:
             raise SessionError("Failed to start session")
 
         # Extract PipeWire node ID for capture
