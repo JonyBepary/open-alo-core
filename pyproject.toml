@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "open-alo-core"
-version = "0.1.0"
+version = "0.3.0"
 description = "Modern Linux desktop automation SDK with Wayland support - Single permission for screen capture and input control"
 readme = "PYPI_README.md"
 license = "MIT"

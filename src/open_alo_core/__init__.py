@@ -4,10 +4,10 @@ open_alo_core - Standalone Desktop Automation SDK for Linux
 Pure hardware abstraction with zero AI/ML dependencies.
 Supports Wayland (via XDG Portals).
 
-Version: 0.1.0 (Wayland MVP)
+Version: 0.3.0
 """
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"
 
 # Public API
 __all__ = [
@@ -15,14 +15,16 @@ __all__ = [
     "WaylandInput",
     "WaylandCapture",
     "UnifiedRemoteDesktop",  # Recommended for AI agents
-    "find_window",
 
-    # Window management (new)
+    # Window management
     "WindowManager",
     "WindowInfo",
     "WindowType",
     "FrameType",
     "get_focused_window",
+    "find_window",
+    "list_windows",
+    "activate_window",
 
     # Types
     "Point",
@@ -42,7 +44,7 @@ __all__ = [
     "SessionError",
     "BackendNotAvailable",
 
-    # Utilities
+    "create_unified_desktop",
     "detect_session_type",
     "is_wayland",
     "is_portal_available",
@@ -55,14 +57,9 @@ __all__ = [
 # Core classes
 from .wayland.input import WaylandInput
 from .wayland.capture import WaylandCapture
-from .wayland.unified import UnifiedRemoteDesktop
+from .wayland.unified import UnifiedRemoteDesktop, create_unified_desktop
 
-# Window management (legacy from old window.py)
-from .window import activate_window as _old_activate_window
-from .window import list_windows as _old_list_windows
-from .window import find_window as _old_find_window
-
-# Window management (new comprehensive API)
+# Window management
 from .window_manager import (
     WindowManager,
     WindowInfo,

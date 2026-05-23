@@ -1,16 +1,13 @@
 include LICENSE
 include PYPI_README.md
 include API_REFERENCE.md
+include src/open_alo_core/py.typed
 recursive-include src *.py
-global-exclude *.pyc
-global-exclude *.pyo
-global-exclude __pycache__
-global-exclude .DS_Store
 recursive-include src *.pyi
 prune tests
-prune assets
 prune examples
 prune __pycache__
+prune assets
 global-exclude *.pyc
 global-exclude *.pyo
 global-exclude .DS_Store

@@ -12,23 +12,24 @@ Key features:
 - Persistent permission tokens
 """
 
-import gi
 import json
 import time
 import uuid
+from io import BytesIO
 from pathlib import Path
 from typing import Optional, List, Tuple
-from io import BytesIO
 
-# Require versions
-gi.require_version('Gst', '1.0')
-gi.require_version('GLib', '2.0')
-gi.require_version('Gio', '2.0')
+import gi
+
+gi.require_version("Gst", "1.0")
+gi.require_version("GLib", "2.0")
+gi.require_version("Gio", "2.0")
 
 from gi.repository import Gst, GLib, Gio
 
 from ..types import Point, normalize_key
 from ..exceptions import PermissionDenied, SessionError, InputError, CaptureError
+from ._portal_helpers import portal_request, char_to_keysym
 
 # Initialize GStreamer
 Gst.init(None)
@@ -117,31 +118,33 @@ class UnifiedRemoteDesktop:
 
     def _ensure_dbus(self) -> None:
         """Lazy initialization of D-Bus connection"""
-        if self._bus is None:
-            self._bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        if self._bus is not None:
+            return
 
-            # RemoteDesktop portal for input + session management
-            self._portal = Gio.DBusProxy.new_sync(
-                self._bus,
-                Gio.DBusProxyFlags.NONE,
-                None,
-                self.PORTAL_BUS,
-                self.PORTAL_PATH,
-                self.REMOTEDESKTOP_IFACE,
-                None
-            )
+        self._bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
 
-            # ScreenCast portal for source selection
-            # (RemoteDesktop inherits ScreenCast but we call SelectSources on ScreenCast interface)
-            self._screencast_portal = Gio.DBusProxy.new_sync(
-                self._bus,
-                Gio.DBusProxyFlags.NONE,
-                None,
-                self.PORTAL_BUS,
-                self.PORTAL_PATH,
-                self.SCREENCAST_IFACE,
-                None
-            )
+        # RemoteDesktop portal for input + session management
+        self._portal = Gio.DBusProxy.new_sync(
+            self._bus,
+            Gio.DBusProxyFlags.NONE,
+            None,
+            self.PORTAL_BUS,
+            self.PORTAL_PATH,
+            self.REMOTEDESKTOP_IFACE,
+            None,
+        )
+
+        # ScreenCast portal for source selection
+        # (RemoteDesktop inherits ScreenCast but SelectSources is on ScreenCast interface)
+        self._screencast_portal = Gio.DBusProxy.new_sync(
+            self._bus,
+            Gio.DBusProxyFlags.NONE,
+            None,
+            self.PORTAL_BUS,
+            self.PORTAL_PATH,
+            self.SCREENCAST_IFACE,
+            None,
+        )
 
     # ==================== Session Management ====================
 
@@ -173,12 +176,6 @@ class UnifiedRemoteDesktop:
 
         self._ensure_dbus()
 
-        # Try to restore from token
-        if persist_mode > 0:
-            if self._restore_session():
-                self._initialized = True
-                return True
-
         # Create new session with both capabilities
         self._create_session(persist_mode, enable_capture)
         self._initialized = True
@@ -196,11 +193,11 @@ class UnifiedRemoteDesktop:
         if self._session_handle and self._portal:
             try:
                 self._portal.call_sync(
-                    'Close',
-                    GLib.Variant('(o)', (self._session_handle,)),
+                    "Close",
+                    GLib.Variant("(o)", (self._session_handle,)),
                     Gio.DBusCallFlags.NONE,
                     5000,
-                    None
+                    None,
                 )
             except Exception:
                 pass
@@ -408,7 +405,6 @@ class UnifiedRemoteDesktop:
             self._ensure_pipeline()
 
             # Try to pull sample (non-blocking)
-            # Uses try-pull-sample which returns immediately if no frame buffered
             sample = self._appsink.emit("try-pull-sample", 0)
             if not sample:
                 return None
@@ -436,6 +432,11 @@ class UnifiedRemoteDesktop:
         Returns:
             (width, height) or None if not available
         """
+        try:
+            self._ensure_pipeline()
+        except Exception:
+            return None
+
         if not self._pipeline:
             return None
 
@@ -457,53 +458,28 @@ class UnifiedRemoteDesktop:
 
     def _create_session(self, persist_mode: int, enable_capture: bool) -> None:
         """Create unified session with both input and capture"""
-        loop = GLib.MainLoop()
-        session_handle: Optional[str] = None
-        error_code: int = -1
-
         token = uuid.uuid4().hex[:8]
         options = {
-            'session_handle_token': GLib.Variant('s', f'unified_{token}'),
-            'handle_token': GLib.Variant('s', f'req_{token}')
+            "session_handle_token": GLib.Variant("s", f"unified_{token}"),
+            "handle_token": GLib.Variant("s", f"req_{token}"),
         }
 
-        result = self._portal.call_sync(
-            'CreateSession',
-            GLib.Variant('(a{sv})', (options,)),
-            Gio.DBusCallFlags.NONE,
-            10000,
-            None
+        error_code, results = portal_request(
+            self._bus,
+            self._portal,
+            "CreateSession",
+            GLib.Variant("(a{sv})", (options,)),
         )
 
-        request_path = result[0]
-
-        def on_response(conn, sender, path, iface, signal, params):
-            nonlocal session_handle, error_code
-            error_code, results = params
-            if error_code == 0:
-                session_handle = str(results['session_handle'])
-            loop.quit()
-
-        sub_id = self._bus.signal_subscribe(
-            self.PORTAL_BUS,
-            'org.freedesktop.portal.Request',
-            'Response',
-            request_path,
-            None,
-            Gio.DBusSignalFlags.NONE,
-            on_response
-        )
-
-        GLib.timeout_add_seconds(30, loop.quit)
-        loop.run()
-        self._bus.signal_unsubscribe(sub_id)
-
-        if session_handle is None:
+        if error_code != 0:
             if error_code == 1:
                 raise PermissionDenied("User denied permission")
-            else:
-                raise SessionError(f"Failed to create session (code: {error_code})")
+            raise SessionError(f"Failed to create session (code: {error_code})")
 
+        if results is None:
+            raise SessionError("No response from portal (timeout)")
+
+        session_handle = str(results["session_handle"])
         self._session_handle = session_handle
 
         # Select input devices (keyboard/mouse)
@@ -518,176 +494,90 @@ class UnifiedRemoteDesktop:
 
     def _select_devices(self, persist_mode: int) -> None:
         """Select input devices (keyboard, mouse, touchscreen)"""
-        loop = GLib.MainLoop()
-        success = False
-
         dev_token = uuid.uuid4().hex[:8]
         options = {
-            'types': GLib.Variant('u', self.DEVICE_ALL),
-            'handle_token': GLib.Variant('s', f'dev_{dev_token}'),
+            "types": GLib.Variant("u", self.DEVICE_ALL),
+            "handle_token": GLib.Variant("s", f"dev_{dev_token}"),
         }
 
         if persist_mode > 0:
-            options['persist_mode'] = GLib.Variant('u', persist_mode)
+            options["persist_mode"] = GLib.Variant("u", persist_mode)
 
-            # Try to restore from token
+            # Pass restore token if available
             token = self._load_token()
             if token:
-                options['restore_token'] = GLib.Variant('s', token)
+                options["restore_token"] = GLib.Variant("s", token)
 
-        result = self._portal.call_sync(
-            'SelectDevices',
-            GLib.Variant('(oa{sv})', (self._session_handle, options)),
-            Gio.DBusCallFlags.NONE,
-            10000,
-            None
+        error_code, results = portal_request(
+            self._bus,
+            self._portal,
+            "SelectDevices",
+            GLib.Variant("(oa{sv})", (self._session_handle, options)),
         )
 
-        request_path = result[0]
-
-        def on_response(conn, sender, path, iface, signal, params):
-            nonlocal success
-            error_code, results = params
-            if error_code == 0:
-                success = True
-                # Save restore token
-                if persist_mode > 0 and isinstance(results, dict):
-                    if 'restore_token' in results:
-                        restore_token = results['restore_token']
-                        if isinstance(restore_token, GLib.Variant):
-                            restore_token = restore_token.get_string()
-                        self._save_token(restore_token)
-            loop.quit()
-
-        sub_id = self._bus.signal_subscribe(
-            self.PORTAL_BUS,
-            'org.freedesktop.portal.Request',
-            'Response',
-            request_path,
-            None,
-            Gio.DBusSignalFlags.NONE,
-            on_response
-        )
-
-        GLib.timeout_add_seconds(30, loop.quit)
-        loop.run()
-        self._bus.signal_unsubscribe(sub_id)
-
-        if not success:
+        if error_code != 0:
             raise PermissionDenied("User denied device access")
+
+        # Save restore token from response
+        if persist_mode > 0 and results is not None and "restore_token" in results:
+            restore_token = results["restore_token"]
+            if isinstance(restore_token, GLib.Variant):
+                restore_token = restore_token.get_string()
+            self._save_token(restore_token)
 
     def _select_sources(self) -> None:
         """Select capture sources (monitor/window)"""
-        loop = GLib.MainLoop()
-        success = False
-
         src_token = uuid.uuid4().hex[:8]
         options = {
-            'types': GLib.Variant('u', self.SOURCE_MONITOR),
-            'multiple': GLib.Variant('b', False),
-            'cursor_mode': GLib.Variant('u', 2),  # Embedded
-            'handle_token': GLib.Variant('s', f'src_{src_token}')
+            "types": GLib.Variant("u", self.SOURCE_MONITOR),
+            "multiple": GLib.Variant("b", False),
+            "cursor_mode": GLib.Variant("u", 2),  # Embedded
+            "handle_token": GLib.Variant("s", f"src_{src_token}"),
         }
 
         # SelectSources is called on ScreenCast interface, not RemoteDesktop
-        result = self._screencast_portal.call_sync(
-            'SelectSources',
-            GLib.Variant('(oa{sv})', (self._session_handle, options)),
-            Gio.DBusCallFlags.NONE,
-            10000,
-            None
+        error_code, _ = portal_request(
+            self._bus,
+            self._screencast_portal,
+            "SelectSources",
+            GLib.Variant("(oa{sv})", (self._session_handle, options)),
         )
 
-        request_path = result[0]
-
-        def on_response(conn, sender, path, iface, signal, params):
-            nonlocal success
-            error_code, _ = params
-            if error_code == 0:
-                success = True
-            loop.quit()
-
-        sub_id = self._bus.signal_subscribe(
-            self.PORTAL_BUS,
-            'org.freedesktop.portal.Request',
-            'Response',
-            request_path,
-            None,
-            Gio.DBusSignalFlags.NONE,
-            on_response
-        )
-
-        GLib.timeout_add_seconds(30, loop.quit)
-        loop.run()
-        self._bus.signal_unsubscribe(sub_id)
-
-        if not success:
+        if error_code != 0:
             raise PermissionDenied("User denied source selection")
 
     def _start_session(self, enable_capture: bool = True) -> None:
         """Start the unified session - shows permission dialog"""
-        loop = GLib.MainLoop()
-        streams = None
-
         start_token = uuid.uuid4().hex[:8]
         options = {
-            'handle_token': GLib.Variant('s', f'start_{start_token}'),
+            "handle_token": GLib.Variant("s", f"start_{start_token}"),
         }
 
-        result = self._portal.call_sync(
-            'Start',
-            GLib.Variant('(osa{sv})', (self._session_handle, '', options)),
-            Gio.DBusCallFlags.NONE,
-            30000,
-            None
+        error_code, results = portal_request(
+            self._bus,
+            self._portal,
+            "Start",
+            GLib.Variant("(osa{sv})", (self._session_handle, "", options)),
         )
 
-        request_path = result[0]
-
-        def on_response(conn, sender, path, iface, signal, params):
-            nonlocal streams
-            error_code, results = params
-            if error_code == 0:
-                streams = results.get('streams')
-            loop.quit()
-
-        sub_id = self._bus.signal_subscribe(
-            self.PORTAL_BUS,
-            'org.freedesktop.portal.Request',
-            'Response',
-            request_path,
-            None,
-            Gio.DBusSignalFlags.NONE,
-            on_response
-        )
-
-        GLib.timeout_add_seconds(30, loop.quit)
-        loop.run()
-        self._bus.signal_unsubscribe(sub_id)
-
-        if enable_capture and streams is None:
+        if enable_capture and (error_code != 0 or results is None):
             raise SessionError("Failed to start session")
 
         # Extract PipeWire node ID for capture
-        if streams and len(streams) > 0:
-            stream_info = streams[0]
-            if isinstance(stream_info, tuple) and len(stream_info) >= 1:
-                self._pipewire_node = int(stream_info[0])
-                # Set up GStreamer pipeline for screen capture
-                self._setup_gstreamer_pipeline()
-
-    def _restore_session(self) -> bool:
-        """Try to restore from saved token"""
-        # For now, create new session
-        # Token restoration would require full session restore logic
-        return False
+        if results:
+            streams = results.get("streams")
+            if streams and len(streams) > 0:
+                stream_info = streams[0]
+                if isinstance(stream_info, tuple) and len(stream_info) >= 1:
+                    self._pipewire_node = int(stream_info[0])
+                    # Pipeline is created lazily on first capture
 
     def _load_token(self) -> Optional[str]:
         """Load restore token from disk"""
         try:
             if self._token_path.exists():
                 data = json.loads(self._token_path.read_text())
-                return data.get('restore_token')
+                return data.get("restore_token")
         except Exception:
             pass
         return None
@@ -697,118 +587,16 @@ class UnifiedRemoteDesktop:
         try:
             self._token_path.parent.mkdir(parents=True, exist_ok=True)
             data = {
-                'restore_token': token,
-                'timestamp': time.time(),
-                'version': 1
+                "restore_token": token,
+                "timestamp": time.time(),
+                "version": 1,
             }
             self._token_path.write_text(json.dumps(data))
         except Exception:
             pass
 
-    def _setup_gstreamer_pipeline(self) -> None:
-        """Set up GStreamer pipeline for screen capture"""
-        if not self._pipewire_node:
-            return
-
-        # Create pipeline: PipeWire source → convert → PNG encode → appsink
-        pipeline_str = (
-            f'pipewiresrc path={self._pipewire_node} ! '
-            f'videoconvert ! '
-            f'video/x-raw,format=RGB ! '
-            f'pngenc ! '
-            f'appsink name=sink'
-        )
-
-        try:
-            self._pipeline = Gst.parse_launch(pipeline_str)
-            self._appsink = self._pipeline.get_by_name('sink')
-
-            # Start pipeline
-            self._pipeline.set_state(Gst.State.PLAYING)
-
-            # Wait for pipeline to reach PLAYING state
-            state_change = self._pipeline.get_state(Gst.CLOCK_TIME_NONE)
-            if state_change[0] != Gst.StateChangeReturn.SUCCESS:
-                raise CaptureError("Failed to start GStreamer pipeline")
-
-        except Exception as e:
-            raise CaptureError(f"Failed to setup GStreamer pipeline: {e}")
-
-    # ==================== Private Input Methods ====================
-
-    def _notify_pointer_motion(self, x: int, y: int) -> None:
-        """Send pointer motion event"""
-        options = {}
-        self._portal.call_sync(
-            'NotifyPointerMotion',
-            GLib.Variant('(oa{sv}dd)', (self._session_handle, options, float(x), float(y))),
-            Gio.DBusCallFlags.NONE,
-            -1,
-            None
-        )
-
-    def _notify_pointer_button(self, button: int, pressed: bool) -> None:
-        """Send pointer button event"""
-        options = {}
-        state = 1 if pressed else 0
-        self._portal.call_sync(
-            'NotifyPointerButton',
-            GLib.Variant('(oa{sv}iu)', (self._session_handle, options, int(button), int(state))),
-            Gio.DBusCallFlags.NONE,
-            -1,
-            None
-        )
-
-    def _notify_keyboard_keysym(self, key: str, pressed: bool) -> None:
-        """Send keyboard key event using keysym"""
-        options = {}
-        state = 1 if pressed else 0
-
-        # Convert character to X11 keysym
-        keysym = self._char_to_keysym(key)
-
-        self._portal.call_sync(
-            'NotifyKeyboardKeysym',
-            GLib.Variant('(oa{sv}iu)', (self._session_handle, options, keysym, state)),
-            Gio.DBusCallFlags.NONE,
-            -1,
-            None
-        )
-
-    def _char_to_keysym(self, char: str) -> int:
-        """Convert character to X11 keysym"""
-        # Simple mapping for common keys
-        # In production, use a complete keysym table
-        keysym_map = {
-            'Return': 0xFF0D,
-            'Escape': 0xFF1B,
-            'Tab': 0xFF09,
-            'BackSpace': 0xFF08,
-            'Delete': 0xFFFF,
-            'Left': 0xFF51,
-            'Up': 0xFF52,
-            'Right': 0xFF53,
-            'Down': 0xFF54,
-            'Control': 0xFFE3,
-            'Alt': 0xFFE9,
-            'Shift': 0xFFE1,
-            'Super': 0xFFEB,
-            ' ': 0x0020,
-        }
-
-        if char in keysym_map:
-            return keysym_map[char]
-
-        # For single characters, use Unicode value
-        if len(char) == 1:
-            return ord(char)
-
-        return 0
-
-    # ==================== Private Capture Methods ====================
-
     def _ensure_pipeline(self) -> None:
-        """Ensure GStreamer pipeline is running"""
+        """Ensure GStreamer pipeline is running (creates one if needed)"""
         if self._pipeline is not None:
             state = self._pipeline.get_state(0)[1]
             if state == Gst.State.PLAYING:
@@ -821,25 +609,77 @@ class UnifiedRemoteDesktop:
         pipeline_str = (
             f"pipewiresrc path={self._pipewire_node} ! "
             "videoconvert ! "
+            "video/x-raw,format=RGB ! "
             "pngenc ! "
             "appsink name=sink emit-signals=true max-buffers=1 drop=true"
         )
 
-        self._pipeline = Gst.parse_launch(pipeline_str)
-        self._appsink = self._pipeline.get_by_name("sink")
+        try:
+            self._pipeline = Gst.parse_launch(pipeline_str)
+            self._appsink = self._pipeline.get_by_name("sink")
 
-        # Start pipeline
-        ret = self._pipeline.set_state(Gst.State.PLAYING)
-        if ret == Gst.StateChangeReturn.FAILURE:
-            raise CaptureError("Failed to start GStreamer pipeline")
+            # Start pipeline
+            ret = self._pipeline.set_state(Gst.State.PLAYING)
+            if ret == Gst.StateChangeReturn.FAILURE:
+                raise CaptureError("Failed to start GStreamer pipeline")
 
-        # Wait for pipeline to be ready
-        time.sleep(0.5)
+            # Wait for pipeline to be ready
+            time.sleep(0.5)
+
+        except Exception as e:
+            raise CaptureError(f"Failed to setup GStreamer pipeline: {e}")
+
+    # ==================== Private Input Methods ====================
+
+    def _notify_pointer_motion(self, x: int, y: int) -> None:
+        """Send pointer motion event"""
+        options = {}
+        self._portal.call_sync(
+            "NotifyPointerMotion",
+            GLib.Variant(
+                "(oa{sv}dd)", (self._session_handle, options, float(x), float(y))
+            ),
+            Gio.DBusCallFlags.NONE,
+            -1,
+            None,
+        )
+
+    def _notify_pointer_button(self, button: int, pressed: bool) -> None:
+        """Send pointer button event"""
+        options = {}
+        state = 1 if pressed else 0
+        self._portal.call_sync(
+            "NotifyPointerButton",
+            GLib.Variant(
+                "(oa{sv}iu)", (self._session_handle, options, int(button), int(state))
+            ),
+            Gio.DBusCallFlags.NONE,
+            -1,
+            None,
+        )
+
+    def _notify_keyboard_keysym(self, key: str, pressed: bool) -> None:
+        """Send keyboard key event using keysym"""
+        options = {}
+        state = 1 if pressed else 0
+        keysym = char_to_keysym(key)
+
+        self._portal.call_sync(
+            "NotifyKeyboardKeysym",
+            GLib.Variant(
+                "(oa{sv}iu)", (self._session_handle, options, keysym, state)
+            ),
+            Gio.DBusCallFlags.NONE,
+            -1,
+            None,
+        )
 
 
 # ==================== Convenience Functions ====================
 
-def create_unified_desktop(persist_mode: int = 2, enable_capture: bool = True) -> UnifiedRemoteDesktop:
+def create_unified_desktop(
+    persist_mode: int = 2, enable_capture: bool = True
+) -> UnifiedRemoteDesktop:
     """
     Convenience function to create and initialize unified desktop
 
