@@ -13,8 +13,7 @@ import sys
 import os
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'open_alo_core', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
 from open_alo_core import WindowManager, WindowInfo, activate_window, get_focused_window
 

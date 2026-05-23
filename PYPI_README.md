@@ -87,10 +87,10 @@ wm.maximize(editor.id)
 
 ## 📚 Documentation
 
-- [**API Reference**](API_REFERENCE.md) - Complete API documentation
-- [**Quick Reference**](../docs/UNIFIED_QUICK_REFERENCE.md) - Common patterns
-- [**Examples**](../examples/) - Working code examples
-- [**Migration Guide**](../docs/MIGRATION_TO_UNIFIED.md) - Upgrade from legacy
+- [**API Reference**](https://github.com/JonyBepary/Open-ALO/blob/main/API_REFERENCE.md) - Complete API documentation
+- [**Quick Reference**](https://github.com/JonyBepary/Open-ALO/blob/main/docs/UNIFIED_QUICK_REFERENCE.md) - Common patterns
+- [**Examples**](https://github.com/JonyBepary/Open-ALO/tree/main/examples/) - Working code examples
+- [**Migration Guide**](https://github.com/JonyBepary/Open-ALO/blob/main/docs/MIGRATION_TO_UNIFIED.md) - Upgrade from legacy
 
 ## 🎯 Use Cases
 
@@ -127,7 +127,7 @@ MIT License - See [LICENSE](LICENSE) file
 
 ## 🤝 Contributing
 
-Contributions welcome! Please read [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
+Contributions welcome! Please read [CONTRIBUTING.md](https://github.com/JonyBepary/Open-ALO/blob/main/CONTRIBUTING.md) for guidelines.
 
 ## 🐛 Issues
 
