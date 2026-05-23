@@ -7,7 +7,7 @@ Supports Wayland (via XDG Portals).
 Version: 0.3.0
 """
 
-__version__ = "0.3.0"
+__version__ = "0.1.3"
 
 # Public API
 __all__ = [
