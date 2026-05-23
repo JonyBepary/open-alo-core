@@ -5,9 +5,14 @@ Provides common utilities used by UnifiedRemoteDesktop, WaylandInput,
 and WaylandCapture to reduce code duplication in D-Bus portal interactions.
 """
 
-from __future__ import annotations
-
 from typing import Any, Dict, Optional, Tuple
+
+import gi
+
+gi.require_version("GLib", "2.0")
+gi.require_version("Gio", "2.0")
+
+from gi.repository import Gio, GLib
 
 
 def portal_request(
@@ -22,7 +27,7 @@ def portal_request(
     Execute an async portal request and wait for the Response signal.
 
     Portal D-Bus API uses an asynchronous request pattern:
-      1. Call the method → get a request object path
+      1. Call the method -> get a request object path
       2. Subscribe to the Response signal on that path
       3. Run a GLib main loop until response or timeout
       4. Return the (error_code, results) tuple
@@ -40,7 +45,6 @@ def portal_request(
             error_code == 0 means success
             results_dict is None if no response within timeout
     """
-    from gi.repository import GLib, Gio
 
     loop = GLib.MainLoop()
     response_data: list = [None, None]  # [error_code, results]

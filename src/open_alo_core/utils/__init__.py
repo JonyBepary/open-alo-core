@@ -9,12 +9,12 @@ from typing import Literal, Optional
 def detect_session_type() -> Literal["wayland", "x11", "unknown"]:
     """
     Detect if running in Wayland or X11 session.
-    
+
     Returns:
         "wayland" - Running on Wayland
-        "x11" - Running on X11  
+        "x11" - Running on X11
         "unknown" - Cannot determine
-        
+
     Example:
         >>> session = detect_session_type()
         >>> if session == "wayland":
@@ -31,10 +31,10 @@ def detect_session_type() -> Literal["wayland", "x11", "unknown"]:
 def is_wayland() -> bool:
     """
     Check if running on Wayland.
-    
+
     Returns:
         True if WAYLAND_DISPLAY is set
-        
+
     Example:
         >>> if is_wayland():
         ...     ctrl = WaylandInput()
@@ -56,8 +56,9 @@ def is_portal_available() -> bool:
     """
     try:
         import gi
-        gi.require_version('Gio', '2.0')
-        gi.require_version('GLib', '2.0')
+
+        gi.require_version("Gio", "2.0")
+        gi.require_version("GLib", "2.0")
         from gi.repository import Gio, GLib
 
         bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
@@ -65,11 +66,11 @@ def is_portal_available() -> bool:
         # Must pass explicit bus name 'org.freedesktop.DBus' as destination
         # (None routes to local bus object which lacks this method).
         result = bus.call_sync(
-            'org.freedesktop.DBus',
-            '/org/freedesktop/DBus',
-            'org.freedesktop.DBus',
-            'NameHasOwner',
-            GLib.Variant('(s)', ('org.freedesktop.portal.Desktop',)),
+            "org.freedesktop.DBus",
+            "/org/freedesktop/DBus",
+            "org.freedesktop.DBus",
+            "NameHasOwner",
+            GLib.Variant("(s)", ("org.freedesktop.portal.Desktop",)),
             None,
             Gio.DBusCallFlags.NONE,
             500,
@@ -85,17 +86,14 @@ def is_portal_available() -> bool:
 def is_pipewire_available() -> bool:
     """
     Check if PipeWire is available for screen capture.
-    
+
     Returns:
         True if PipeWire is running
     """
     try:
         import subprocess
-        result = subprocess.run(
-            ['pw-cli', 'info'],
-            capture_output=True,
-            timeout=2
-        )
+
+        result = subprocess.run(["pw-cli", "info"], capture_output=True, timeout=2)
         return result.returncode == 0
     except Exception:
         return False

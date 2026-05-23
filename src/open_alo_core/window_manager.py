@@ -14,13 +14,14 @@ This module provides a clean, Pythonic API for window operations including:
 
 import json
 import subprocess
-from typing import Optional, List, Dict, Tuple
 from dataclasses import dataclass
 from enum import IntEnum
+from typing import Dict, List, Optional, Tuple
 
 
 class WindowType(IntEnum):
     """Window type enumeration"""
+
     NORMAL = 0
     DESKTOP = 1
     DOCK = 2
@@ -34,6 +35,7 @@ class WindowType(IntEnum):
 
 class FrameType(IntEnum):
     """Window frame type enumeration"""
+
     NORMAL = 0
     FRAMELESS = 1
 
@@ -41,6 +43,7 @@ class FrameType(IntEnum):
 @dataclass
 class WindowInfo:
     """Window information container"""
+
     id: int
     wm_class: str
     wm_class_instance: str
@@ -114,18 +117,20 @@ class WindowManager:
             Raw D-Bus response string or None on error
         """
         cmd = [
-            'gdbus', 'call', '--session',
-            '--dest', self.DBUS_DEST,
-            '--object-path', self.DBUS_PATH,
-            '--method', f'{self.DBUS_INTERFACE}.{method}'
+            "gdbus",
+            "call",
+            "--session",
+            "--dest",
+            self.DBUS_DEST,
+            "--object-path",
+            self.DBUS_PATH,
+            "--method",
+            f"{self.DBUS_INTERFACE}.{method}",
         ] + [str(arg) for arg in args]
 
         try:
             result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=self.timeout
+                cmd, capture_output=True, text=True, timeout=self.timeout
             )
             if result.returncode == 0:
                 return result.stdout.strip()
@@ -147,7 +152,7 @@ class WindowManager:
         if response.startswith("('") and response.endswith("',)"):
             json_str = response[2:-3]  # Remove (' and ',)
             # Unescape unicode sequences
-            json_str = json_str.encode().decode('unicode_escape')
+            json_str = json_str.encode().decode("unicode_escape")
             return json.loads(json_str)
 
         # Fallback: try direct parsing
@@ -183,27 +188,29 @@ class WindowManager:
 
         windows = []
         for data in windows_data:
-            if current_workspace_only and not data.get('in_current_workspace', False):
+            if current_workspace_only and not data.get("in_current_workspace", False):
                 continue
 
-            windows.append(WindowInfo(
-                id=data['id'],
-                wm_class=data.get('wm_class', ''),
-                wm_class_instance=data.get('wm_class_instance', ''),
-                title=data.get('title', ''),
-                pid=data.get('pid', 0),
-                x=data.get('x', 0),
-                y=data.get('y', 0),
-                width=data.get('width', 0),
-                height=data.get('height', 0),
-                workspace=data.get('workspace', 0),
-                monitor=data.get('monitor', 0),
-                frame_type=data.get('frame_type', 0),
-                window_type=data.get('window_type', 0),
-                focus=data.get('focus', False),
-                in_current_workspace=data.get('in_current_workspace', False),
-                maximized=data.get('maximized', 0)
-            ))
+            windows.append(
+                WindowInfo(
+                    id=data["id"],
+                    wm_class=data.get("wm_class", ""),
+                    wm_class_instance=data.get("wm_class_instance", ""),
+                    title=data.get("title", ""),
+                    pid=data.get("pid", 0),
+                    x=data.get("x", 0),
+                    y=data.get("y", 0),
+                    width=data.get("width", 0),
+                    height=data.get("height", 0),
+                    workspace=data.get("workspace", 0),
+                    monitor=data.get("monitor", 0),
+                    frame_type=data.get("frame_type", 0),
+                    window_type=data.get("window_type", 0),
+                    focus=data.get("focus", False),
+                    in_current_workspace=data.get("in_current_workspace", False),
+                    maximized=data.get("maximized", 0),
+                )
+            )
 
         return windows
 
@@ -240,7 +247,9 @@ class WindowManager:
 
         return None
 
-    def find_all_windows(self, query: str, match_title: bool = True) -> List[WindowInfo]:
+    def find_all_windows(
+        self, query: str, match_title: bool = True
+    ) -> List[WindowInfo]:
         """
         Find all windows matching query
 
@@ -256,8 +265,9 @@ class WindowManager:
         matches = []
 
         for window in windows:
-            if (query_lower in window.wm_class.lower() or
-                (match_title and query_lower in window.title.lower())):
+            if query_lower in window.wm_class.lower() or (
+                match_title and query_lower in window.title.lower()
+            ):
                 matches.append(window)
 
         return matches
@@ -380,8 +390,9 @@ class WindowManager:
         response = self._dbus_call("Resize", window_id, width, height)
         return response is not None
 
-    def move_resize(self, window_id: int, x: int, y: int,
-                    width: int, height: int) -> bool:
+    def move_resize(
+        self, window_id: int, x: int, y: int, width: int, height: int
+    ) -> bool:
         """
         Move and resize window in one operation
 
@@ -446,6 +457,7 @@ class WindowManager:
 
 
 # ==================== Convenience Functions ====================
+
 
 def list_windows(current_workspace_only: bool = False) -> List[WindowInfo]:
     """Convenience function to list windows"""

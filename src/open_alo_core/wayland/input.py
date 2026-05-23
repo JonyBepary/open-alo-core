@@ -12,7 +12,7 @@ import json
 import time
 import uuid
 from pathlib import Path
-from typing import Optional, List
+from typing import List, Optional
 
 import gi
 
@@ -21,9 +21,9 @@ gi.require_version("GLib", "2.0")
 
 from gi.repository import Gio, GLib
 
+from ..exceptions import InputError, PermissionDenied, SessionError
 from ..types import Point, normalize_key
-from ..exceptions import PermissionDenied, SessionError, InputError
-from ._portal_helpers import portal_request, char_to_keysym
+from ._portal_helpers import char_to_keysym, portal_request
 
 
 class WaylandInput:
@@ -431,9 +431,7 @@ class WaylandInput:
 
         self._portal.call_sync(
             "NotifyKeyboardKeysym",
-            GLib.Variant(
-                "(oa{sv}iu)", (self._session_handle, options, keysym, state)
-            ),
+            GLib.Variant("(oa{sv}iu)", (self._session_handle, options, keysym, state)),
             Gio.DBusCallFlags.NONE,
             -1,
             None,
