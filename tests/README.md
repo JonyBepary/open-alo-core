@@ -16,7 +16,7 @@ Comprehensive functional test of UnifiedRemoteDesktop:
 **Run:**
 ```bash
 cd /home/jony/OPEN_ALO
-/usr/bin/python3 open_alo_core/test_unified.py
+/usr/bin/python3 tests/test_unified.py
 ```
 
 **What it tests:**
@@ -29,7 +29,7 @@ cd /home/jony/OPEN_ALO
 - ✅ Keyboard shortcuts
 - ✅ Clean shutdown
 
-### `open_alo_core/test_functional.py`
+### `tests/test_functional.py`
 
 Quick test of all APIs (unified + legacy):
 - UnifiedRemoteDesktop (recommended)
@@ -41,10 +41,10 @@ Quick test of all APIs (unified + legacy):
 **Run:**
 ```bash
 cd /home/jony/OPEN_ALO
-/usr/bin/python3 open_alo_core/test_functional.py
+/usr/bin/python3 tests/test_functional.py
 ```
 
-### `open_alo_core/test_structure.py`
+### `tests/test_structure.py`
 
 Structure validation test:
 - Import validation
@@ -54,7 +54,7 @@ Structure validation test:
 **Run:**
 ```bash
 cd /home/jony/OPEN_ALO
-/usr/bin/python3 open_alo_core/test_structure.py
+/usr/bin/python3 tests/test_structure.py
 ```
 
 ## Running Tests

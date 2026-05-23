@@ -4,7 +4,8 @@ Quick test of open_alo_core package structure
 """
 
 import sys
-sys.path.insert(0, 'open_alo_core/src')
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 print("Testing open_alo_core package structure...")
 print()
