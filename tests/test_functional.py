@@ -5,7 +5,8 @@ Tests UnifiedRemoteDesktop (recommended) and legacy APIs
 """
 
 import sys
-sys.path.insert(0, 'open_alo_core/src')
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 print("="*60)
 print("OPEN_ALO_CORE Functional Test")
@@ -14,12 +15,11 @@ print()
 
 # Test 1: Utils
 print("1. Testing utilities...")
-from open_alo_core import detect_session_type, is_wayland, is_portal_available
+from open_alo_core import detect_session_type, is_wayland
 
 session = detect_session_type()
 print(f"   Session type: {session}")
 print(f"   Is Wayland: {is_wayland()}")
-print(f"   Portal available: {is_portal_available()}")
 print()
 
 # Test 2: Point operations
@@ -71,7 +71,7 @@ try:
 except Exception as e:
     print(f"   ❌ Error: {e}")
 
-# Test 5: Context manager
+# Test 6: Context manager
 print()
 print("5. Testing context manager...")
 try:

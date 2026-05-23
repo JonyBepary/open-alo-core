@@ -8,7 +8,7 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, 'open_alo_core/src')
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 print("=" * 70)
 print("OPEN_ALO_CORE - UnifiedRemoteDesktop Functional Test")
