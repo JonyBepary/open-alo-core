@@ -164,14 +164,18 @@ wm.activate(window.id)
 
 ## Examples
 
-| Example                                                           | Description             |
-| ----------------------------------------------------------------- | ----------------------- |
-| [`unified_minimal.py`](examples/unified_minimal.py)               | Quick start in 20 lines |
-| [`unified_ai_agent_demo.py`](examples/unified_ai_agent_demo.py)   | Full AI agent workflow  |
-| [`window_management_demo.py`](examples/window_management_demo.py) | Window control patterns |
+| Example                                                                   | Description                     |
+| ------------------------------------------------------------------------- | ------------------------------- |
+| [`unified_minimal.py`](examples/unified_minimal.py)                       | Quick start in 20 lines         |
+| [`unified_ai_agent_demo.py`](examples/unified_ai_agent_demo.py)           | Full AI agent workflow          |
+| [`unified_debug.py`](examples/unified_debug.py)                           | Debug with verbose error traces |
+| [`window_management_demo.py`](examples/window_management_demo.py)         | List, activate, move, resize    |
+| [`show_desktop_ui_tree.py`](examples/show_desktop_ui_tree.py)             | Desktop overview with positions |
+| [`show_desktop_ui_tree_advanced.py`](examples/show_desktop_ui_tree_advanced.py) | AT-SPI accessibility tree       |
 
 ```bash
-python3 examples/unified_ai_agent_demo.py
+# Start here
+python3 examples/unified_minimal.py
 ```
 
 ---

@@ -70,6 +70,14 @@ screenshots/
 /tmp/*.png
 /tmp/*.jpg
 
+# Agent metadata
+.omo/
+
+# Test output artifacts
+browser_tree.txt
+output.txt
+ui_tree.txt
+
 # Keep assets
 !assets/
 
