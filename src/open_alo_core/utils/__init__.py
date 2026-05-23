@@ -47,40 +47,37 @@ def is_wayland() -> bool:
 def is_portal_available() -> bool:
     """
     Check if XDG Desktop Portal is available.
-    
-    This checks if the portal service is running.
-    
+
+    Uses a lightweight D-Bus name owner check instead of a full
+    introspection call for faster response.
+
     Returns:
         True if portal is available
-        
-    Example:
-        >>> if not is_portal_available():
-        ...     print("Portal not available, cannot initialize")
     """
     try:
         import gi
         gi.require_version('Gio', '2.0')
-        from gi.repository import Gio
-        
+        gi.require_version('GLib', '2.0')
+        from gi.repository import Gio, GLib
+
         bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-        proxy = Gio.DBusProxy.new_sync(
-            bus,
-            Gio.DBusProxyFlags.NONE,
-            None,
-            'org.freedesktop.portal.Desktop',
-            '/org/freedesktop/portal/desktop',
-            'org.freedesktop.DBus.Introspectable',
-            None
-        )
-        # Try to introspect
-        result = proxy.call_sync(
-            'Introspect',
+        # NameHasOwner: lightweight D-Bus name owner check.
+        # Must pass explicit bus name 'org.freedesktop.DBus' as destination
+        # (None routes to local bus object which lacks this method).
+        result = bus.call_sync(
+            'org.freedesktop.DBus',
+            '/org/freedesktop/DBus',
+            'org.freedesktop.DBus',
+            'NameHasOwner',
+            GLib.Variant('(s)', ('org.freedesktop.portal.Desktop',)),
             None,
             Gio.DBusCallFlags.NONE,
-            1000,
-            None
+            500,
+            None,
         )
-        return result is not None
+        if result:
+            return result.get_child_value(0).get_boolean()
+        return False
     except Exception:
         return False
 
