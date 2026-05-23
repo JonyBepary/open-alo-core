@@ -7,7 +7,7 @@ Provides native Wayland screenshot capability without X11 fallback.
 import time
 import uuid
 from dataclasses import dataclass
-from typing import Optional, Tuple, Dict, Any
+from typing import Any, Dict, Optional, Tuple
 
 import gi
 
@@ -15,7 +15,7 @@ gi.require_version("Gst", "1.0")
 gi.require_version("GLib", "2.0")
 gi.require_version("Gio", "2.0")
 
-from gi.repository import Gst, GLib, Gio
+from gi.repository import Gio, GLib, Gst
 
 from ..exceptions import CaptureError, PermissionDenied
 from ._portal_helpers import portal_request

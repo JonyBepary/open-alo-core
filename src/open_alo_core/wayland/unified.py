@@ -17,7 +17,7 @@ import time
 import uuid
 from io import BytesIO
 from pathlib import Path
-from typing import Optional, List, Tuple
+from typing import List, Optional, Tuple
 
 import gi
 
@@ -25,11 +25,11 @@ gi.require_version("Gst", "1.0")
 gi.require_version("GLib", "2.0")
 gi.require_version("Gio", "2.0")
 
-from gi.repository import Gst, GLib, Gio
+from gi.repository import Gio, GLib, Gst
 
+from ..exceptions import CaptureError, InputError, PermissionDenied, SessionError
 from ..types import Point, normalize_key
-from ..exceptions import PermissionDenied, SessionError, InputError, CaptureError
-from ._portal_helpers import portal_request, char_to_keysym
+from ._portal_helpers import char_to_keysym, portal_request
 
 # Initialize GStreamer
 Gst.init(None)
@@ -95,7 +95,9 @@ class UnifiedRemoteDesktop:
 
         # Token storage
         if token_path is None:
-            token_path = Path.home() / ".config" / "open_alo_core" / "unified_token.json"
+            token_path = (
+                Path.home() / ".config" / "open_alo_core" / "unified_token.json"
+            )
         self._token_path = Path(token_path)
 
         # D-Bus connection (lazy initialization)
@@ -352,7 +354,9 @@ class UnifiedRemoteDesktop:
             raise RuntimeError("Not initialized")
 
         if self._pipewire_node is None:
-            raise RuntimeError("Screen capture not enabled - initialize with enable_capture=True")
+            raise RuntimeError(
+                "Screen capture not enabled - initialize with enable_capture=True"
+            )
 
         try:
             # Ensure pipeline is running
@@ -666,9 +670,7 @@ class UnifiedRemoteDesktop:
 
         self._portal.call_sync(
             "NotifyKeyboardKeysym",
-            GLib.Variant(
-                "(oa{sv}iu)", (self._session_handle, options, keysym, state)
-            ),
+            GLib.Variant("(oa{sv}iu)", (self._session_handle, options, keysym, state)),
             Gio.DBusCallFlags.NONE,
             -1,
             None,
@@ -676,6 +678,7 @@ class UnifiedRemoteDesktop:
 
 
 # ==================== Convenience Functions ====================
+
 
 def create_unified_desktop(
     persist_mode: int = 2, enable_capture: bool = True
