@@ -389,7 +389,7 @@ class UnifiedRemoteDesktop:
             raise RuntimeError("Not initialized - call initialize() first")
         try:
             if x is not None and y is not None:
-                self._notify_pointer_motion(x, y)
+                self._notify_pointer_motion_absolute(x, y)
                 time.sleep(self._pause)
             self._portal.call_sync(
                 "NotifyPointerAxisDiscrete",
@@ -409,7 +409,7 @@ class UnifiedRemoteDesktop:
             raise RuntimeError("Not initialized - call initialize() first")
         try:
             if x is not None and y is not None:
-                self._notify_pointer_motion(x, y)
+                self._notify_pointer_motion_absolute(x, y)
                 time.sleep(self._pause)
             self._portal.call_sync(
                 "NotifyPointerAxisDiscrete",
@@ -447,7 +447,7 @@ class UnifiedRemoteDesktop:
             raise RuntimeError("Not initialized - call initialize() first")
         button_pressed = False
         try:
-            self._notify_pointer_motion(start.x, start.y)
+            self._notify_pointer_motion_absolute(start.x, start.y)
             time.sleep(self._pause)
             self._notify_pointer_button(button, pressed=True)
             button_pressed = True
@@ -458,10 +458,10 @@ class UnifiedRemoteDesktop:
                     t = i / steps
                     x = int(start.x + (end.x - start.x) * t)
                     y = int(start.y + (end.y - start.y) * t)
-                    self._notify_pointer_motion(x, y)
+                    self._notify_pointer_motion_absolute(x, y)
                     time.sleep(self._pause)
             else:
-                self._notify_pointer_motion(end.x, end.y)
+                self._notify_pointer_motion_absolute(end.x, end.y)
                 time.sleep(self._pause)
         except Exception as e:
             raise InputError(f"Drag failed: {e}") from e
@@ -485,7 +485,7 @@ class UnifiedRemoteDesktop:
             raise RuntimeError("Not initialized - call initialize() first")
         button_pressed = False
         try:
-            self._notify_pointer_motion(start.x, start.y)
+            self._notify_pointer_motion_absolute(start.x, start.y)
             time.sleep(self._pause)
             self._notify_pointer_button(button, pressed=True)
             button_pressed = True
@@ -494,7 +494,7 @@ class UnifiedRemoteDesktop:
                 t = i / steps
                 x = int(start.x + (end.x - start.x) * t)
                 y = int(start.y + (end.y - start.y) * t)
-                self._notify_pointer_motion(x, y)
+                self._notify_pointer_motion_absolute(x, y)
                 time.sleep(duration / steps)
         except Exception as e:
             raise InputError(f"Swipe failed: {e}") from e

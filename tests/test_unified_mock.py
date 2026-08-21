@@ -617,7 +617,7 @@ class TestUnifiedRemoteDesktopScroll:
 
     def test_scroll_with_coords(self):
         desktop = self._make_initialized()
-        with patch.object(desktop, "_notify_pointer_motion") as mock_motion:
+        with patch.object(desktop, "_notify_pointer_motion_absolute") as mock_motion:
             desktop.scroll(5, x=100, y=200)
             mock_motion.assert_called_once_with(100, 200)
             args = desktop._portal.call_sync.call_args[0]
@@ -662,7 +662,7 @@ class TestUnifiedRemoteDesktopScroll:
 
     def test_hscroll_with_coords(self):
         desktop = self._make_initialized()
-        with patch.object(desktop, "_notify_pointer_motion") as mock_motion:
+        with patch.object(desktop, "_notify_pointer_motion_absolute") as mock_motion:
             desktop.hscroll(3, x=50, y=60)
             mock_motion.assert_called_once_with(50, 60)
 
@@ -698,7 +698,7 @@ class TestUnifiedRemoteDesktopDrag:
     def test_drag(self):
         desktop = self._make_initialized()
         with (
-            patch.object(desktop, "_notify_pointer_motion") as mock_motion,
+            patch.object(desktop, "_notify_pointer_motion_absolute") as mock_motion,
             patch.object(desktop, "_notify_pointer_button") as mock_button,
         ):
             desktop.drag(self.Point(100, 100), self.Point(200, 200))
@@ -710,7 +710,7 @@ class TestUnifiedRemoteDesktopDrag:
     def test_drag_with_duration(self):
         desktop = self._make_initialized()
         with (
-            patch.object(desktop, "_notify_pointer_motion") as mock_motion,
+            patch.object(desktop, "_notify_pointer_motion_absolute") as mock_motion,
             patch.object(desktop, "_notify_pointer_button") as mock_button,
         ):
             desktop.drag(self.Point(0, 0), self.Point(100, 100), duration=0.1)
@@ -718,11 +718,10 @@ class TestUnifiedRemoteDesktopDrag:
             mock_button.assert_any_call(1, pressed=True)
             mock_button.assert_any_call(1, pressed=False)
 
-
     def test_drag_right_button(self):
         desktop = self._make_initialized()
         with (
-            patch.object(desktop, "_notify_pointer_motion"),
+            patch.object(desktop, "_notify_pointer_motion_absolute"),
             patch.object(desktop, "_notify_pointer_button") as mock_button,
         ):
             desktop.drag(self.Point(100, 100), self.Point(200, 200), button=3)
@@ -733,7 +732,7 @@ class TestUnifiedRemoteDesktopDrag:
         desktop = self._make_initialized()
         motion_calls = [None, Exception("drag motion error")]
         with (
-            patch.object(desktop, "_notify_pointer_motion", side_effect=motion_calls),
+            patch.object(desktop, "_notify_pointer_motion_absolute", side_effect=motion_calls),
             patch.object(desktop, "_notify_pointer_button") as mock_button,
         ):
             with pytest.raises(InputError, match="Drag failed"):
@@ -749,7 +748,7 @@ class TestUnifiedRemoteDesktopDrag:
     def test_swipe(self):
         desktop = self._make_initialized()
         with (
-            patch.object(desktop, "_notify_pointer_motion") as mock_motion,
+            patch.object(desktop, "_notify_pointer_motion_absolute") as mock_motion,
             patch.object(desktop, "_notify_pointer_button") as mock_button,
         ):
             desktop.swipe(self.Point(0, 0), self.Point(100, 100), steps=3)
@@ -763,7 +762,7 @@ class TestUnifiedRemoteDesktopDrag:
         desktop = self._make_initialized()
         motion_calls = [None, None, Exception("swipe error")]
         with (
-            patch.object(desktop, "_notify_pointer_motion", side_effect=motion_calls),
+            patch.object(desktop, "_notify_pointer_motion_absolute", side_effect=motion_calls),
             patch.object(desktop, "_notify_pointer_button") as mock_button,
         ):
             with pytest.raises(InputError, match="Swipe failed"):
