@@ -62,14 +62,15 @@ class WindowInfo:
     maximized: int = 0
 
     def __repr__(self):
-        return f"WindowInfo(id={self.id}, wm_class='{self.wm_class}', title='{self.title[:30]}...', focus={self.focus})"
+        title_str = self.title if len(self.title) <= 30 else f"{self.title[:27]}..."
+        return f"WindowInfo(id={self.id}, wm_class='{self.wm_class}', title='{title_str}', focus={self.focus})"
 
 
 class WindowManager:
     """
     Window Manager for GNOME Shell via D-Bus
 
-    Provides high-level window management operations using the Window Calls extension.
+    Provides high-level window management operations using the window-actions extension.
     All methods handle D-Bus communication and parse responses automatically.
 
     Example:
@@ -92,18 +93,28 @@ class WindowManager:
             timeout: Default timeout for D-Bus calls in seconds
         """
         self.timeout = timeout
-        self._check_extension()
+        self.is_available = self._check_extension()
 
     def _check_extension(self) -> bool:
         """Check if Window Calls extension is available"""
         try:
             result = self._dbus_call("List")
-            return result is not None
-        except Exception:
+            if not result:
+                raise RuntimeError(
+                    "Window Calls extension not available. "
+                    "Install from: https://extensions.gnome.org/extension/4724/window-calls/"
+                )
+            return True
+        except RuntimeError:
+            raise
+        except Exception as e:
             raise RuntimeError(
                 "Window Calls extension not available. "
                 "Install from: https://extensions.gnome.org/extension/4724/window-calls/"
-            )
+            ) from e
+
+
+
 
     def _dbus_call(self, method: str, *args) -> Optional[str]:
         """
@@ -313,10 +324,24 @@ class WindowManager:
         response = self._dbus_call("GetTitle", window_id)
         if not response:
             return None
-        # Response format: ('title',)
+        # Response format: ('title',) or ('"title"',)
         if response.startswith("('") and response.endswith("',)"):
-            return response[2:-3]
+            inner = response[2:-3]
+            if inner.startswith('"') and inner.endswith('"'):
+                try:
+                    return json.loads(inner)
+                except Exception:
+                    pass
+            return inner
+        try:
+            parsed = self._parse_json_response(response)
+            if isinstance(parsed, str):
+                return parsed
+        except Exception:
+            pass
         return None
+
+
 
     # ==================== Window State Management ====================
 
@@ -357,6 +382,63 @@ class WindowManager:
         """Close a window"""
         response = self._dbus_call("Close", window_id)
         return response is not None
+
+    def make_fullscreen(self, window_id: int) -> bool:
+        """
+        Make a window fullscreen.
+
+        Args:
+            window_id: Window ID
+
+        Returns:
+            True if successful
+
+        Example:
+            >>> wm = WindowManager()
+            >>> wm.make_fullscreen(window.id)
+        """
+        response = self._dbus_call("MakeFullscreen", window_id)
+        return response is not None
+
+    def unmake_fullscreen(self, window_id: int) -> bool:
+        """
+        Exit fullscreen for a window.
+
+        Args:
+            window_id: Window ID
+
+        Returns:
+            True if successful
+
+        Example:
+            >>> wm = WindowManager()
+            >>> wm.unmake_fullscreen(window.id)
+        """
+        response = self._dbus_call("UnmakeFullscreen", window_id)
+        return response is not None
+
+    def toggle_fullscreen(self, window_id: int) -> bool:
+        """
+        Toggle fullscreen state of a window.
+
+        If the window is currently fullscreen, exits fullscreen.
+        If not, makes it fullscreen.
+
+        Args:
+            window_id: Window ID
+
+        Returns:
+            True if successful
+
+        Example:
+            >>> wm = WindowManager()
+            >>> wm.toggle_fullscreen(window.id)
+        """
+        details = self.get_details(window_id)
+        if details and details.get("fullscreen", False):
+            return self.unmake_fullscreen(window_id)
+        return self.make_fullscreen(window_id)
+
 
     # ==================== Window Positioning ====================
 
