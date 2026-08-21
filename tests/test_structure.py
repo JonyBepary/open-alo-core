@@ -5,49 +5,71 @@ Quick test of open_alo_core package structure
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-print("Testing open_alo_core package structure...")
-print()
+def main() -> int:
+    print("Testing open_alo_core package structure...")
+    print()
 
-# Test 1: Import core
-try:
-    from open_alo_core import WaylandInput, WaylandCapture
-    print("✅ WaylandInput imported")
-    print("✅ WaylandCapture imported")
-except Exception as e:
-    print(f"❌ Import failed: {e}")
-    sys.exit(1)
+    failed = False
 
-# Test 2: Import types
-try:
-    from open_alo_core import Point, Size, Rect, BUTTON_LEFT
-    p = Point(100, 200)
-    print(f"✅ Point created: {p}")
-except Exception as e:
-    print(f"❌ Types failed: {e}")
+    # Test 1: Import core
+    try:
+        from open_alo_core import WaylandCapture, WaylandInput
 
-# Test 3: Import exceptions
-try:
-    from open_alo_core import CoreError, PermissionDenied
-    print("✅ Exceptions imported")
-except Exception as e:
-    print(f"❌ Exceptions failed: {e}")
+        print("✅ WaylandInput imported")
+        print("✅ WaylandCapture imported")
+    except Exception as e:
+        print(f"❌ Import failed: {e}")
+        failed = True
 
-# Test 4: Import utils
-try:
-    from open_alo_core import detect_session_type, is_wayland
-    session = detect_session_type()
-    print(f"✅ Session type: {session}")
-except Exception as e:
-    print(f"❌ Utils failed: {e}")
+    # Test 2: Import types
+    try:
+        from open_alo_core import BUTTON_LEFT, Point, Rect, Size
 
-print()
-print("="*60)
-print("✅ Core package structure looks good!")
-print("="*60)
-print()
-print("Next steps:")
-print("  cd open_alo_core")
-print("  pip install -e .")
-print("  python -c 'from open_alo_core import WaylandInput'")
+        p = Point(100, 200)
+        print(f"✅ Point created: {p}")
+    except Exception as e:
+        print(f"❌ Types failed: {e}")
+        failed = True
+
+    # Test 3: Import exceptions
+    try:
+        from open_alo_core import CoreError, PermissionDenied
+
+        print("✅ Exceptions imported")
+    except Exception as e:
+        print(f"❌ Exceptions failed: {e}")
+        failed = True
+
+    # Test 4: Import utils
+    try:
+        from open_alo_core import detect_session_type, is_wayland
+
+        session = detect_session_type()
+        print(f"✅ Session type: {session}")
+    except Exception as e:
+        print(f"❌ Utils failed: {e}")
+        failed = True
+
+    print()
+    print("=" * 60)
+    if failed:
+        print("❌ Core package structure tests failed!")
+        print("=" * 60)
+        return 1
+
+    print("✅ Core package structure looks good!")
+    print("=" * 60)
+    print()
+    print("Next steps:")
+    print("  cd open_alo_core")
+    print("  pip install -e .")
+    print("  python -c 'from open_alo_core import WaylandInput'")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+

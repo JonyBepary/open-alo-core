@@ -3,13 +3,14 @@ Unit tests for open_alo_core exception hierarchy.
 """
 
 import pytest
+
 from open_alo_core import (
-    CoreError,
-    PermissionDenied,
-    CaptureError,
-    InputError,
-    SessionError,
     BackendNotAvailable,
+    CaptureError,
+    CoreError,
+    InputError,
+    PermissionDenied,
+    SessionError,
 )
 
 
@@ -31,6 +32,21 @@ class TestExceptionHierarchy:
 
     def test_core_error_inherits_from_exception(self):
         assert issubclass(CoreError, Exception)
+
+    @pytest.mark.parametrize(
+        "exc_cls",
+        [
+            PermissionDenied,
+            CaptureError,
+            InputError,
+            SessionError,
+            BackendNotAvailable,
+        ],
+    )
+    def test_catch_subclass_as_core_error(self, exc_cls):
+        with pytest.raises(CoreError):
+            raise exc_cls("Test error")
+
 
 
 class TestExceptionInstances:

@@ -3,8 +3,9 @@ Unit tests for open_alo_core data types: Point, Size, Rect, normalize_key.
 """
 
 import pytest
-from open_alo_core import Point, Size, Rect, BUTTON_LEFT, BUTTON_MIDDLE, BUTTON_RIGHT
-from open_alo_core.types import normalize_key, KEY_ALIASES
+
+from open_alo_core import BUTTON_LEFT, BUTTON_MIDDLE, BUTTON_RIGHT, Point, Rect, Size
+from open_alo_core.types import KEY_ALIASES, normalize_key
 
 
 class TestPoint:
@@ -130,12 +131,15 @@ class TestNormalizeKey:
             ("right", "Right"),
             ("up", "Up"),
             ("down", "Down"),
+            ("pageup", "Page_Up"),
+            ("pagedown", "Page_Down"),
             ("Return", "Return"),  # Already normalized
             ("space", "space"),
         ],
     )
     def test_known_aliases(self, input_key, expected):
         assert normalize_key(input_key) == expected
+
 
     def test_unknown_key_passthrough(self):
         """Unknown keys should pass through unchanged."""

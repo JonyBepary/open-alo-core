@@ -4,9 +4,10 @@ Pytest configuration and shared fixtures for open_alo_core tests.
 Provides PyGObject mocking so tests can run without a Wayland/GNOME session.
 """
 
-from unittest.mock import MagicMock, patch
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 # Ensure src/ is on sys.path BEFORE any test imports the package,
@@ -36,12 +37,43 @@ _gio.DBusConnection = MagicMock
 _gio.DBusProxy = MagicMock
 _gio.DBusProxy.new_sync = MagicMock(return_value=MagicMock())
 
+class _MockVariantMeta(type):
+    def __init__(cls, name, bases, dct):
+        super().__init__(name, bases, dct)
+        cls._mock = MagicMock()
+
+    def __call__(cls, *args, **kwargs):
+        cls._mock(*args, **kwargs)
+        inst = super().__call__(*args, **kwargs)
+        return inst
+
+    def __getattr__(cls, item):
+        return getattr(cls._mock, item)
+
+
+class MockVariant(metaclass=_MockVariantMeta):
+    def __init__(self, sig=None, val=None):
+        self.sig = sig
+        self.val = val
+
+    def get_string(self):
+        return str(self.val) if self.val is not None else "mock_token"
+
+    def get_boolean(self):
+        return True
+
+    def __repr__(self):
+        return f"<Variant({self.sig!r}, {self.val!r})>"
+
+
 _glib.MainLoop = MagicMock(return_value=MagicMock())
 _glib.MainLoop.return_value.run = MagicMock()
 _glib.MainLoop.return_value.quit = MagicMock()
 _glib.timeout_add_seconds = MagicMock(return_value=42)
-_glib.Variant = MagicMock(side_effect=lambda sig, val: MagicMock())
-_glib.Variant.return_value.__repr__ = MagicMock(return_value="<Variant>")
+_glib.source_remove = MagicMock(return_value=True)
+_glib.Variant = MockVariant
+
+
 
 _gst.StateChangeReturn.SUCCESS = 0
 _gst.StateChangeReturn.FAILURE = 1
@@ -99,17 +131,15 @@ def mock_bus():
     """
     bus = MagicMock()
 
-    def _signal_subscribe(
-        bus_name, iface, signal, path, arg0, flags, callback
-    ):
+    def _signal_subscribe(bus_name, iface, signal, path, arg0, flags, callback):
         """Invoke callback immediately to simulate portal response."""
         callback(
-            None,          # connection
-            bus_name,      # sender name
-            path,          # object path
-            iface,         # interface name
-            signal,        # signal name
-            (0, {}),       # (error_code, results) — success
+            None,  # connection
+            bus_name,  # sender name
+            path,  # object path
+            iface,  # interface name
+            signal,  # signal name
+            (0, {}),  # (error_code, results) — success
         )
         return 1  # subscription id
 

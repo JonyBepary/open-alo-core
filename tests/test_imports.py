@@ -2,41 +2,35 @@
 Verify all public API symbols can be imported and __all__ is correct.
 """
 
-from open_alo_core import (  # noqa: F401
-    # Main controllers
-    WaylandInput,
-    WaylandCapture,
-    UnifiedRemoteDesktop,
-    # Window management
-    WindowManager,
-    WindowInfo,
-    WindowType,
-    FrameType,
-    get_focused_window,
-    find_window,
-    list_windows,
-    activate_window,
-    # Types
-    Point,
-    Size,
-    Rect,
-    # Constants
+from open_alo_core import (  # noqa: F401; Main controllers; Window management; Types; Constants; Exceptions; Utilities; Key normalization
     BUTTON_LEFT,
     BUTTON_MIDDLE,
     BUTTON_RIGHT,
-    # Exceptions
-    CoreError,
-    PermissionDenied,
-    CaptureError,
-    InputError,
-    SessionError,
     BackendNotAvailable,
-    # Utilities
+    CaptureError,
+    CoreError,
+    FrameType,
+    InputError,
+    PermissionDenied,
+    Point,
+    Rect,
+    SessionError,
+    Size,
+    UnifiedRemoteDesktop,
+    WaylandCapture,
+    WaylandInput,
+    WindowInfo,
+    WindowManager,
+    WindowType,
+    activate_window,
+    create_unified_desktop,
     detect_session_type,
-    is_wayland,
-    is_portal_available,
+    find_window,
+    get_focused_window,
     is_pipewire_available,
-    # Key normalization
+    is_portal_available,
+    is_wayland,
+    list_windows,
     normalize_key,
 )
 
@@ -60,3 +54,4 @@ def test_all_exports_match():
         assert hasattr(
             open_alo_core, name
         ), f"{name} is in __all__ but not accessible as open_alo_core.{name}"
+

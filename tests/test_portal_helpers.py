@@ -7,8 +7,9 @@ PyGObject is mocked via conftest.py.
 
 import sys
 from pathlib import Path
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Ensure src/ is on sys.path for importing internal modules
 _src = str(Path(__file__).parent.parent / "src")
@@ -80,23 +81,48 @@ class TestCharToKeysym:
             keysym = self.char_to_keysym(c)
             assert 0 <= keysym <= 0x10FFFF
 
+    @pytest.mark.parametrize(
+        "char,expected_keysym",
+        [
+            ("আ", 0x01000000 | ord("আ")),
+            ("ল", 0x01000000 | ord("ল")),
+            ("া", 0x01000000 | ord("া")),
+            ("€", 0x01000000 | ord("€")),
+            ("語", 0x01000000 | ord("語")),
+            ("🚀", 0x01000000 | ord("🚀")),
+        ],
+    )
+    def test_non_latin_unicode_keysyms(self, char, expected_keysym):
+        """Characters > 0xFF map to 0x01000000 | codepoint."""
+        assert self.char_to_keysym(char) == expected_keysym
+
+
 
 class TestPortalRequest:
     """portal_request() — async D-Bus request helper."""
 
     @pytest.fixture(autouse=True)
     def import_module(self):
+        from gi.repository import GLib
         from open_alo_core.wayland._portal_helpers import portal_request
 
         self.portal_request = portal_request
+        self.GLib = GLib
 
     def test_successful_response(self, mock_bus, mock_dbus_portal):
         """Happy path: portal returns error_code=0 and results."""
+        expected_results = {"session_handle": "/session/123"}
+
+        def _signal_subscribe(bus_name, iface, signal, path, arg0, flags, callback):
+            callback(None, bus_name, path, iface, signal, (0, expected_results))
+            return 1
+
+        mock_bus.signal_subscribe.side_effect = _signal_subscribe
         error_code, results = self.portal_request(
             mock_bus, mock_dbus_portal, "CreateSession", MagicMock()
         )
         assert error_code == 0
-        # With mocks returning minimal data, we mainly care it runs without error
+        assert results == expected_results
 
     def test_uses_signal_subscribe(self, mock_bus, mock_dbus_portal):
         """Should subscribe to Response signal."""
@@ -104,12 +130,16 @@ class TestPortalRequest:
         assert mock_bus.signal_subscribe.called
 
     def test_uses_timeout(self, mock_bus, mock_dbus_portal):
-        """Should set a timeout to prevent hanging."""
+        """Should register a GLib timeout."""
+        self.GLib.timeout_add_seconds.reset_mock()
         self.portal_request(mock_bus, mock_dbus_portal, "CreateSession", MagicMock())
-        assert mock_bus.signal_unsubscribe.called
+        self.GLib.timeout_add_seconds.assert_called_once()
+        args = self.GLib.timeout_add_seconds.call_args[0]
+        assert args[0] == 30
 
     def test_custom_timeout(self, mock_bus, mock_dbus_portal):
         """Custom timeout_seconds should be respected."""
+        self.GLib.timeout_add_seconds.reset_mock()
         self.portal_request(
             mock_bus,
             mock_dbus_portal,
@@ -117,4 +147,58 @@ class TestPortalRequest:
             MagicMock(),
             timeout_seconds=15,
         )
-        assert mock_bus.signal_subscribe.called
+        args = self.GLib.timeout_add_seconds.call_args[0]
+        assert args[0] == 15
+
+    def test_cleans_up_timeout_and_signal(self, mock_bus, mock_dbus_portal):
+        """Should remove timeout source and unsubscribe signal on completion."""
+        self.GLib.source_remove.reset_mock()
+        mock_bus.signal_unsubscribe.reset_mock()
+        self.portal_request(mock_bus, mock_dbus_portal, "CreateSession", MagicMock())
+        self.GLib.source_remove.assert_called_once()
+        mock_bus.signal_unsubscribe.assert_called_once_with(1)
+
+
+    def test_error_code_response(self, mock_bus, mock_dbus_portal):
+        """Non-zero error code (e.g. 1 for user cancelled/denied)."""
+        def _signal_subscribe(bus_name, iface, signal, path, arg0, flags, callback):
+            callback(None, bus_name, path, iface, signal, (1, {}))
+            return 1
+
+        mock_bus.signal_subscribe.side_effect = _signal_subscribe
+        error_code, results = self.portal_request(
+            mock_bus, mock_dbus_portal, "CreateSession", MagicMock()
+        )
+        assert error_code == 1
+        assert results == {}
+
+    def test_timeout_expiry(self, mock_dbus_portal):
+        """If response signal never arrives, timeout occurs and returns None."""
+        bus = MagicMock()
+        bus.signal_subscribe.return_value = 1  # Does not invoke callback
+
+        error_code, results = self.portal_request(
+            bus, mock_dbus_portal, "CreateSession", MagicMock(), timeout_seconds=5
+        )
+        assert error_code is None
+        assert results is None
+
+    def test_early_response_before_call_sync_returns(self, mock_bus, mock_dbus_portal):
+        """When Response signal arrives synchronously upon subscription."""
+        expected_results = {"session_handle": "/session/early_123"}
+
+        def _signal_subscribe(bus_name, iface, signal, path, arg0, flags, callback):
+            # Invoke callback synchronously during subscription
+            callback(None, bus_name, "/org/freedesktop/portal/desktop/request/1/token", iface, signal, (0, expected_results))
+            return 99
+
+        mock_bus.signal_subscribe.side_effect = _signal_subscribe
+        mock_dbus_portal.call_sync.return_value = ("/org/freedesktop/portal/desktop/request/1/token",)
+
+        error_code, results = self.portal_request(
+            mock_bus, mock_dbus_portal, "CreateSession", MagicMock()
+        )
+        assert error_code == 0
+        assert results == expected_results
+
+
