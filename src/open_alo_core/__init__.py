@@ -4,10 +4,11 @@ open_alo_core - Standalone Desktop Automation SDK for Linux
 Pure hardware abstraction with zero AI/ML dependencies.
 Supports Wayland (via XDG Portals).
 
-Version: 0.3.0
+Version: 0.2.0
 """
 
-__version__ = "0.1.3"
+__version__ = "0.2.0"
+
 
 # Public API
 __all__ = [
