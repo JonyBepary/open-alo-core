@@ -258,6 +258,21 @@ class TestWindowManagerDBusResponseParsing:
             # nonexistent
             assert wm.find_window("nonexistent") is None
 
+    def test_find_window_with_none_fields(self):
+        """find_window and find_all_windows safely handle None wm_class/title (e.g. XWayland dummy windows)."""
+        from open_alo_core.window_manager import WindowInfo
+
+        wm = self.cls()
+        dummy_win = WindowInfo(id=999, wm_class=None, wm_class_instance=None, title=None)
+        valid_win = WindowInfo(id=1000, wm_class="Terminal", wm_class_instance="terminal", title="bash")
+
+        with patch.object(wm, "list_windows", return_value=[dummy_win, valid_win]):
+            assert wm.find_window("Terminal") == valid_win
+            assert wm.find_window("nonexistent") is None
+            all_found = wm.find_all_windows("Terminal")
+            assert len(all_found) == 1
+            assert all_found[0] == valid_win
+
     def test_find_all_windows(self):
         from open_alo_core.window_manager import WindowInfo
 
@@ -453,4 +468,88 @@ class TestWindowManagerErrorHandling:
             wm = WindowManager()
             with patch.object(wm, "_parse_json_response", return_value=None):
                 assert wm.list_windows() == []
+
+
+class TestWindowManagerZOrder:
+    """Tests for WindowManager.get_window_z_order and module convenience function."""
+
+    def test_get_window_z_order_success(self):
+        import open_alo_core
+        from open_alo_core import WindowManager
+
+        with patch.object(WindowManager, "_dbus_call", return_value="('[101, 102, 103]',)"):
+            wm = WindowManager.__new__(WindowManager)
+            wm.timeout = 5
+            z_order = wm.get_window_z_order()
+            assert z_order == [101, 102, 103]
+
+    def test_get_window_z_order_empty(self):
+        from open_alo_core import WindowManager
+
+        with patch.object(WindowManager, "_dbus_call", return_value="('[]',)") :
+            wm = WindowManager.__new__(WindowManager)
+            wm.timeout = 5
+            assert wm.get_window_z_order() == []
+
+    def test_get_window_z_order_dbus_failure(self):
+        from open_alo_core import WindowManager
+
+        with patch.object(WindowManager, "_dbus_call", return_value=None):
+            wm = WindowManager.__new__(WindowManager)
+            wm.timeout = 5
+            assert wm.get_window_z_order() == []
+
+    def test_get_window_z_order_convenience_function(self):
+        import open_alo_core
+
+        with patch.object(open_alo_core.WindowManager, "get_window_z_order", return_value=[42, 43]):
+            assert open_alo_core.get_window_z_order() == [42, 43]
+
+
+class TestWindowManagerWaitForWindow:
+    """Tests for WindowManager.wait_for_window and module convenience function."""
+
+    def test_wait_for_window_found_immediately(self):
+        import open_alo_core
+        from open_alo_core import WindowInfo, WindowManager
+
+        mock_win = WindowInfo(id=99, wm_class="Brave-browser", wm_class_instance="brave")
+        wm = WindowManager.__new__(WindowManager)
+        wm.timeout = 5
+
+        with patch.object(wm, "find_window", return_value=mock_win):
+            found = wm.wait_for_window("Brave", timeout=1.0)
+            assert found == mock_win
+
+    def test_wait_for_window_found_after_retry(self):
+        from open_alo_core import WindowInfo, WindowManager
+
+        mock_win = WindowInfo(id=99, wm_class="Brave-browser", wm_class_instance="brave")
+        wm = WindowManager.__new__(WindowManager)
+        wm.timeout = 5
+
+        with patch.object(wm, "find_window", side_effect=[None, mock_win]):
+            found = wm.wait_for_window("Brave", timeout=1.0, poll_interval=0.01)
+            assert found == mock_win
+
+    def test_wait_for_window_timeout_returns_none(self):
+        from open_alo_core import WindowManager
+
+        wm = WindowManager.__new__(WindowManager)
+        wm.timeout = 5
+
+        with patch.object(wm, "find_window", return_value=None):
+            found = wm.wait_for_window("NonexistentApp", timeout=0.05, poll_interval=0.01)
+            assert found is None
+
+    def test_wait_for_window_convenience_function(self):
+        import open_alo_core
+        from open_alo_core import WindowInfo
+
+        mock_win = WindowInfo(id=99, wm_class="Brave", wm_class_instance="brave")
+        with patch.object(open_alo_core.WindowManager, "wait_for_window", return_value=mock_win) as mock_wait:
+            res = open_alo_core.wait_for_window("Brave", timeout=2.0)
+            assert res == mock_win
+            mock_wait.assert_called_once_with("Brave", match_title=True, timeout=2.0, poll_interval=0.05)
+
 

@@ -121,6 +121,17 @@ class TestUnifiedRemoteDesktopClose:
         assert remote._pipeline is None
         assert remote._appsink is None
 
+    def test_close_stops_raw_pipeline(self):
+        from gi.repository import Gst
+
+        remote = self.cls()
+        raw_pipeline_mock = MagicMock()
+        remote._raw_pipeline = raw_pipeline_mock
+        remote.close()
+        raw_pipeline_mock.set_state.assert_called_once_with(Gst.State.NULL)
+        assert remote._raw_pipeline is None
+        assert remote._raw_appsink is None
+
     def test_close_calls_portal_close(self):
         remote = self.cls()
         portal_mock = MagicMock()
@@ -886,3 +897,442 @@ class TestUnifiedRemoteDesktopConfig:
         assert desktop.touch_mode is False
         desktop.touch_mode = True
         assert desktop.touch_mode is True
+
+
+class TestUnifiedRemoteDesktopStreamInfo:
+    """Stream info parsing and public get_stream_info()."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.cls = UnifiedRemoteDesktop
+
+    def test_stream_info_default_none(self):
+        remote = self.cls()
+        assert remote.get_stream_info() is None
+
+    def test_stream_info_extracted_from_start_response(self):
+        remote = self.cls()
+        remote._bus = MagicMock()
+        remote._portal = MagicMock()
+        remote._screencast_portal = MagicMock()
+
+        responses = [
+            (0, {"session_handle": "/session/100"}),  # CreateSession
+            (0, {}),  # SelectDevices
+            (0, {}),  # SelectSources
+            (
+                0,
+                {
+                    "streams": [
+                        (
+                            123,
+                            {
+                                "position": (0, 0),
+                                "size": (1920, 1080),
+                                "logical_size": (1854, 1048),
+                                "scale": 1.0,
+                                "source_type": 1,
+                            },
+                        )
+                    ]
+                },
+            ),  # Start
+        ]
+
+        with patch.object(remote, "_ensure_dbus"):
+            with patch("open_alo_core.wayland.unified.portal_request", side_effect=responses):
+                remote.initialize(persist_mode=2, enable_capture=True)
+                info = remote.get_stream_info()
+                assert info is not None
+                assert info["node_id"] == 123
+                assert info["position"] == (0, 0)
+                assert info["size"] == (1920, 1080)
+                assert info["logical_size"] == (1854, 1048)
+                assert info["scale"] == 1.0
+                assert info["source_type"] == 1
+
+    def test_stream_info_cleared_on_close(self):
+        remote = self.cls()
+        remote._session_handle = "/session/100"
+        remote._initialized = True
+        remote._stream_info = {"node_id": 123}
+        remote.close()
+        assert remote.get_stream_info() is None
+        assert remote._stream_info is None
+
+    def test_stream_info_scale_and_logical_size_fallbacks(self):
+        remote = self.cls()
+        remote._initialized = True
+        remote._stream_info = {
+            "node_id": 99,
+            "position": (0, 0),
+            "size": (1920, 1080),
+            "logical_size": None,
+            "scale": None,
+            "source_type": 1,
+        }
+        info = remote.get_stream_info()
+        assert info["scale"] == 1.0
+        assert info["logical_size"] == (1920, 1080)
+
+        # Scale with 1.5
+        remote._stream_info["scale"] = 1.5
+        remote._stream_info["logical_size"] = None
+        info = remote.get_stream_info()
+        assert info["scale"] == 1.5
+        assert info["logical_size"] == (1280, 720)
+
+
+class TestUnifiedRemoteDesktopNormalization:
+    """Coordinate normalization and denormalization helpers."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.cls = UnifiedRemoteDesktop
+
+    def _make_initialized_with_stream(self, logical_size=(1854, 1048), size=(1920, 1080)):
+        desktop = self.cls()
+        desktop._initialized = True
+        desktop._session_handle = "/test/session"
+        desktop._stream_info = {
+            "node_id": 42,
+            "position": (0, 0),
+            "size": size,
+            "logical_size": logical_size,
+            "scale": 1.0,
+            "source_type": 1,
+        }
+        return desktop
+
+    def test_normalize_point_happy_path(self):
+        desktop = self._make_initialized_with_stream(logical_size=(1854, 1048))
+        nx, ny = desktop.normalize_point(Point(927, 524))
+        assert nx == pytest.approx(0.5)
+        assert ny == pytest.approx(0.5)
+
+    def test_denormalize_point_happy_path(self):
+        desktop = self._make_initialized_with_stream(logical_size=(1854, 1048))
+        pt = desktop.denormalize_point(0.5, 0.5)
+        assert pt == Point(927, 524)
+
+    def test_normalize_point_fallback_to_size_when_logical_size_none(self):
+        desktop = self._make_initialized_with_stream(logical_size=None, size=(1920, 1080))
+        nx, ny = desktop.normalize_point(Point(960, 540))
+        assert nx == pytest.approx(0.5)
+        assert ny == pytest.approx(0.5)
+
+    def test_normalize_point_fallback_to_screen_size(self):
+        desktop = self.cls()
+        desktop._initialized = True
+        with patch.object(desktop, "get_screen_size", return_value=(800, 600)):
+            nx, ny = desktop.normalize_point(Point(400, 300))
+            assert nx == pytest.approx(0.5)
+            assert ny == pytest.approx(0.5)
+
+    def test_denormalize_point_fallback_to_screen_size(self):
+        desktop = self.cls()
+        desktop._initialized = True
+        with patch.object(desktop, "get_screen_size", return_value=(800, 600)):
+            pt = desktop.denormalize_point(0.5, 0.5)
+            assert pt == Point(400, 300)
+
+    def test_normalize_point_raises_when_not_initialized(self):
+        desktop = self.cls()
+        with pytest.raises(RuntimeError, match="Not initialized"):
+            desktop.normalize_point(Point(100, 100))
+
+    def test_denormalize_point_raises_when_not_initialized(self):
+        desktop = self.cls()
+        with pytest.raises(RuntimeError, match="Not initialized"):
+            desktop.denormalize_point(0.5, 0.5)
+
+    def test_normalize_point_raises_when_no_size(self):
+        desktop = self.cls()
+        desktop._initialized = True
+        with patch.object(desktop, "get_screen_size", return_value=None):
+            with pytest.raises(RuntimeError, match="stream size unknown"):
+                desktop.normalize_point(Point(100, 100))
+
+    def test_denormalize_point_raises_when_no_size(self):
+        desktop = self.cls()
+        desktop._initialized = True
+        with patch.object(desktop, "get_screen_size", return_value=None):
+            with pytest.raises(RuntimeError, match="stream size unknown"):
+                desktop.denormalize_point(0.5, 0.5)
+
+
+class TestUnifiedRemoteDesktopCaptureObservation:
+    """capture_observation() — timestamp-locked frame capture."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.cls = UnifiedRemoteDesktop
+
+    def _make_initialized(self):
+        from gi.repository import Gst
+
+        desktop = self.cls()
+        desktop._initialized = True
+        desktop._session_handle = "/test/session"
+        desktop._pipewire_node = 42
+        desktop._stream_info = {
+            "node_id": 42,
+            "position": (0, 0),
+            "size": (1920, 1080),
+            "logical_size": (1854, 1048),
+            "scale": 1.0,
+            "source_type": 1,
+        }
+        desktop._pipeline = MagicMock()
+        desktop._pipeline.get_state.return_value = (
+            Gst.StateChangeReturn.SUCCESS,
+            Gst.State.PLAYING,
+            0,
+        )
+        desktop._appsink = MagicMock()
+        return desktop
+
+    def test_capture_observation_raises_if_not_initialized(self):
+        remote = self.cls()
+        with pytest.raises(RuntimeError, match="Not initialized"):
+            remote.capture_observation()
+
+    def test_capture_observation_raises_if_no_pipewire(self):
+        remote = self.cls()
+        remote._initialized = True
+        with pytest.raises(RuntimeError, match="capture not enabled"):
+            remote.capture_observation()
+
+    def test_capture_observation_happy_path(self):
+        desktop = self._make_initialized()
+        mock_sample = MagicMock()
+        mock_buffer = MagicMock()
+        mock_map_info = MagicMock()
+        mock_map_info.data = b"\x89PNG\r\n\x1a\nfake_image_data"
+        mock_buffer.map.return_value = (True, mock_map_info)
+        mock_sample.get_buffer.return_value = mock_buffer
+        desktop._appsink.emit.return_value = mock_sample
+
+        obs = desktop.capture_observation()
+        assert obs["png"] == b"\x89PNG\r\n\x1a\nfake_image_data"
+        assert isinstance(obs["timestamp_ns"], int)
+        assert obs["timestamp_ns"] > 0
+        assert obs["stream_info"] == desktop._stream_info
+        mock_buffer.unmap.assert_called_once_with(mock_map_info)
+
+    def test_capture_observation_no_sample_raises_capture_error(self):
+        desktop = self._make_initialized()
+        desktop._appsink.emit.return_value = None
+        with pytest.raises(CaptureError, match="No sample available"):
+            desktop.capture_observation()
+
+
+class TestUnifiedRemoteDesktopInjectionTimestamp:
+    """Injection methods timestamp return values."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.cls = UnifiedRemoteDesktop
+
+    def _make_initialized(self):
+        desktop = self.cls()
+        desktop._initialized = True
+        desktop._session_handle = "/test/session"
+        desktop._portal = MagicMock()
+        desktop._pause = 0.0001
+        return desktop
+
+    def test_click_returns_timestamp(self):
+        desktop = self._make_initialized()
+        with (
+            patch.object(desktop, "_notify_pointer_motion_absolute"),
+            patch.object(desktop, "_notify_pointer_button"),
+        ):
+            ts = desktop.click(Point(150, 250), button=1)
+            assert isinstance(ts, int)
+            assert ts > 0
+
+    def test_press_key_returns_timestamp(self):
+        desktop = self._make_initialized()
+        with patch.object(desktop, "_notify_keyboard_keysym"):
+            ts = desktop.press_key("Return")
+            assert isinstance(ts, int)
+            assert ts > 0
+
+
+class TestUnifiedRemoteDesktopCaptureRawRGB:
+    """capture_raw_rgb() — uncompressed raw RGB frame capture."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.cls = UnifiedRemoteDesktop
+
+    def _make_initialized(self):
+        from gi.repository import Gst
+
+        desktop = self.cls()
+        desktop._initialized = True
+        desktop._session_handle = "/test/session"
+        desktop._pipewire_node = 79
+        desktop._stream_info = {
+            "node_id": 79,
+            "position": (0, 0),
+            "size": (1920, 1080),
+            "logical_size": (1920, 1080),
+            "scale": 1.0,
+            "source_type": 1,
+        }
+        desktop._raw_pipeline = MagicMock()
+        desktop._raw_pipeline.get_state.return_value = (
+            Gst.StateChangeReturn.SUCCESS,
+            Gst.State.PLAYING,
+            0,
+        )
+        desktop._raw_appsink = MagicMock()
+        return desktop
+
+    def test_capture_raw_rgb_raises_if_not_initialized(self):
+        remote = self.cls()
+        with pytest.raises(RuntimeError, match="Not initialized"):
+            remote.capture_raw_rgb()
+
+    def test_capture_raw_rgb_raises_if_no_pipewire(self):
+        remote = self.cls()
+        remote._initialized = True
+        with pytest.raises(RuntimeError, match="capture not enabled"):
+            remote.capture_raw_rgb()
+
+    def test_capture_raw_rgb_happy_path(self):
+        desktop = self._make_initialized()
+        mock_sample = MagicMock()
+        mock_buffer = MagicMock()
+        mock_caps = MagicMock()
+        mock_struct = MagicMock()
+        mock_struct.get_int.side_effect = lambda field: (True, 1920) if field == "width" else (True, 1080)
+        mock_caps.get_structure.return_value = mock_struct
+        mock_sample.get_caps.return_value = mock_caps
+
+        mock_map_info = MagicMock()
+        fake_raw_bytes = b"\xff\x00\x00" * (1920 * 1080)
+        mock_map_info.data = fake_raw_bytes
+        mock_buffer.map.return_value = (True, mock_map_info)
+        mock_sample.get_buffer.return_value = mock_buffer
+        desktop._raw_appsink.emit.return_value = mock_sample
+
+        obs = desktop.capture_raw_rgb()
+        assert obs["buffer"] == fake_raw_bytes
+        assert obs["width"] == 1920
+        assert obs["height"] == 1080
+        assert obs["stride"] == 1920 * 3
+        assert isinstance(obs["timestamp_ns"], int)
+        assert obs["timestamp_ns"] > 0
+        assert obs["stream_info"]["node_id"] == 79
+        mock_buffer.unmap.assert_called_once_with(mock_map_info)
+
+    def test_capture_raw_rgb_no_sample_raises_capture_error(self):
+        desktop = self._make_initialized()
+        desktop._raw_appsink.emit.return_value = None
+        with pytest.raises(CaptureError, match="No sample available"):
+            desktop.capture_raw_rgb()
+
+    def test_capture_raw_rgb_map_failure_raises_capture_error(self):
+        desktop = self._make_initialized()
+        mock_sample = MagicMock()
+        mock_buffer = MagicMock()
+        mock_buffer.map.return_value = (False, None)
+        mock_sample.get_buffer.return_value = mock_buffer
+        desktop._raw_appsink.emit.return_value = mock_sample
+        with pytest.raises(CaptureError, match="Failed to map buffer"):
+            desktop.capture_raw_rgb()
+
+
+class TestUnifiedRemoteDesktopGetFrameRGB:
+    """get_frame_rgb() — non-blocking raw RGB frame capture."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.cls = UnifiedRemoteDesktop
+
+    def _make_initialized(self):
+        from gi.repository import Gst
+
+        desktop = self.cls()
+        desktop._initialized = True
+        desktop._session_handle = "/test/session"
+        desktop._pipewire_node = 79
+        desktop._stream_info = {
+            "node_id": 79,
+            "position": (0, 0),
+            "size": (1920, 1080),
+            "logical_size": (1920, 1080),
+            "scale": 1.0,
+            "source_type": 1,
+        }
+        desktop._raw_pipeline = MagicMock()
+        desktop._raw_pipeline.get_state.return_value = (
+            Gst.StateChangeReturn.SUCCESS,
+            Gst.State.PLAYING,
+            0,
+        )
+        desktop._raw_appsink = MagicMock()
+        return desktop
+
+    def test_get_frame_rgb_returns_none_when_not_initialized(self):
+        remote = self.cls()
+        assert remote.get_frame_rgb() is None
+
+    def test_get_frame_rgb_returns_none_when_no_sample(self):
+        desktop = self._make_initialized()
+        desktop._raw_appsink.emit.return_value = None
+        assert desktop.get_frame_rgb() is None
+
+    def test_get_frame_rgb_happy_path(self):
+        desktop = self._make_initialized()
+        mock_sample = MagicMock()
+        mock_buffer = MagicMock()
+        mock_caps = MagicMock()
+        mock_struct = MagicMock()
+        mock_struct.get_int.side_effect = lambda field: (True, 640) if field == "width" else (True, 480)
+        mock_caps.get_structure.return_value = mock_struct
+        mock_sample.get_caps.return_value = mock_caps
+
+        mock_map_info = MagicMock()
+        mock_map_info.data = b"\x00\xff\x00" * (640 * 480)
+        mock_buffer.map.return_value = (True, mock_map_info)
+        mock_sample.get_buffer.return_value = mock_buffer
+        desktop._raw_appsink.emit.return_value = mock_sample
+
+        frame = desktop.get_frame_rgb()
+        assert frame is not None
+        assert frame["width"] == 640
+        assert frame["height"] == 480
+        assert frame["stride"] == 640 * 3
+        assert isinstance(frame["timestamp_ns"], int)
+        mock_buffer.unmap.assert_called_once_with(mock_map_info)
+
+
+class TestUnifiedRemoteDesktopIsAlive:
+    """is_alive() — session health and liveness."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.cls = UnifiedRemoteDesktop
+
+    def test_is_alive_true_when_initialized(self):
+        desktop = self.cls()
+        desktop._initialized = True
+        desktop._session_handle = "/org/freedesktop/portal/desktop/session/123"
+        assert desktop.is_alive() is True
+
+    def test_is_alive_false_when_not_initialized(self):
+        desktop = self.cls()
+        assert desktop.is_alive() is False
+
+    def test_is_alive_false_after_close(self):
+        desktop = self.cls()
+        desktop._initialized = True
+        desktop._session_handle = "/org/freedesktop/portal/desktop/session/123"
+        desktop.close()
+        assert desktop.is_alive() is False
+
+

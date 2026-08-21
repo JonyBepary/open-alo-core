@@ -205,9 +205,9 @@ class WindowManager:
             windows.append(
                 WindowInfo(
                     id=data["id"],
-                    wm_class=data.get("wm_class", ""),
-                    wm_class_instance=data.get("wm_class_instance", ""),
-                    title=data.get("title", ""),
+                    wm_class=data.get("wm_class") or "",
+                    wm_class_instance=data.get("wm_class_instance") or "",
+                    title=data.get("title") or "",
                     pid=data.get("pid", 0),
                     x=data.get("x", 0),
                     y=data.get("y", 0),
@@ -247,13 +247,13 @@ class WindowManager:
 
         # First try wm_class (fast)
         for window in windows:
-            if query_lower in window.wm_class.lower():
+            if query_lower in (window.wm_class or "").lower():
                 return window
 
         # Then try titles if enabled
         if match_title:
             for window in windows:
-                if query_lower in window.title.lower():
+                if query_lower in (window.title or "").lower():
                     return window
 
         return None
@@ -276,12 +276,69 @@ class WindowManager:
         matches = []
 
         for window in windows:
-            if query_lower in window.wm_class.lower() or (
-                match_title and query_lower in window.title.lower()
+            if query_lower in (window.wm_class or "").lower() or (
+                match_title and query_lower in (window.title or "").lower()
             ):
                 matches.append(window)
 
         return matches
+
+    def get_window_z_order(self) -> List[int]:
+        """
+        Get all window IDs in visual stacking order from bottom to top.
+
+        The last ID in the returned list is the top-most (front-most) window.
+
+        Returns:
+            List of window IDs in stacking order (bottom to top).
+
+        Example:
+            >>> wm = WindowManager()
+            >>> z_order = wm.get_window_z_order()
+            >>> top_win_id = z_order[-1] if z_order else None
+        """
+        response = self._dbus_call("GetWindowZOrder")
+        if response:
+            data = self._parse_json_response(response)
+            if isinstance(data, list):
+                return [int(x) for x in data if isinstance(x, (int, float))]
+
+        # Fallback to list_windows() order (which enumerates window actors bottom-to-top)
+        windows = self.list_windows()
+        return [win.id for win in windows]
+
+    def wait_for_window(
+        self,
+        query: str,
+        match_title: bool = True,
+        timeout: float = 5.0,
+        poll_interval: float = 0.05,
+    ) -> Optional[WindowInfo]:
+        """
+        Poll until a window matching query appears or timeout expires.
+
+        Args:
+            query: Search string for wm_class or title.
+            match_title: Whether to match on title as well.
+            timeout: Max seconds to wait.
+            poll_interval: Delay between checks (seconds).
+
+        Returns:
+            Matching WindowInfo if found, or None if timed out.
+
+        Example:
+            >>> wm = WindowManager()
+            >>> win = wm.wait_for_window("Brave", timeout=3.0)
+        """
+        import time
+
+        start = time.monotonic()
+        while time.monotonic() - start < timeout:
+            win = self.find_window(query, match_title=match_title)
+            if win:
+                return win
+            time.sleep(poll_interval)
+        return None
 
     def get_focused_window(self) -> Optional[WindowInfo]:
         """
@@ -583,3 +640,18 @@ def get_focused_window() -> Optional[WindowInfo]:
     """Convenience function to get focused window"""
     wm = WindowManager()
     return wm.get_focused_window()
+
+
+def get_window_z_order() -> List[int]:
+    """Convenience function to get window Z-order (stacking order bottom-to-top)"""
+    wm = WindowManager()
+    return wm.get_window_z_order()
+
+
+def wait_for_window(
+    query: str, match_title: bool = True, timeout: float = 5.0, poll_interval: float = 0.05
+) -> Optional[WindowInfo]:
+    """Convenience function to wait for a window to appear"""
+    wm = WindowManager()
+    return wm.wait_for_window(query, match_title=match_title, timeout=timeout, poll_interval=poll_interval)
+

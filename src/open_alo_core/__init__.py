@@ -4,10 +4,10 @@ open_alo_core - Standalone Desktop Automation SDK for Linux
 Pure hardware abstraction with zero AI/ML dependencies.
 Supports Wayland (via XDG Portals).
 
-Version: 0.2.0
+Version: 0.3.0
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 # Public API
@@ -22,9 +22,11 @@ __all__ = [
     "WindowType",
     "FrameType",
     "get_focused_window",
+    "get_window_z_order",
     "find_window",
     "list_windows",
     "activate_window",
+    "wait_for_window",
     # Types
     "Point",
     "Size",
@@ -45,6 +47,9 @@ __all__ = [
     "is_wayland",
     "is_portal_available",
     "is_pipewire_available",
+    "get_monotonic_ns",
+    "sanitize_rect",
+    "map_global_to_stream",
     # Key normalization
     "normalize_key",
 ]
@@ -73,9 +78,12 @@ from .types import (
 # Utilities
 from .utils import (
     detect_session_type,
+    get_monotonic_ns,
     is_pipewire_available,
     is_portal_available,
     is_wayland,
+    map_global_to_stream,
+    sanitize_rect,
 )
 from .wayland.capture import WaylandCapture
 
@@ -92,5 +100,8 @@ from .window_manager import (
     activate_window,
     find_window,
     get_focused_window,
+    get_window_z_order,
     list_windows,
+    wait_for_window,
 )
+

@@ -92,6 +92,7 @@ class UnifiedRemoteDesktop:
         """
         self._session_handle: Optional[str] = None
         self._pipewire_node: Optional[int] = None
+        self._stream_info: Optional[dict] = None
         self._initialized = False
 
         # Token storage
@@ -109,6 +110,8 @@ class UnifiedRemoteDesktop:
         # GStreamer pipeline for capture
         self._pipeline: Optional[Gst.Pipeline] = None
         self._appsink: Optional[Gst.Element] = None
+        self._raw_pipeline: Optional[Gst.Pipeline] = None
+        self._raw_appsink: Optional[Gst.Element] = None
 
         # Config properties
         self._pause = 0.05
@@ -197,6 +200,11 @@ class UnifiedRemoteDesktop:
             self._pipeline = None
             self._appsink = None
 
+        if self._raw_pipeline:
+            self._raw_pipeline.set_state(Gst.State.NULL)
+            self._raw_pipeline = None
+            self._raw_appsink = None
+
         # Close portal session
         if self._session_handle and self._portal:
             try:
@@ -212,11 +220,12 @@ class UnifiedRemoteDesktop:
 
         self._session_handle = None
         self._pipewire_node = None
+        self._stream_info = None
         self._initialized = False
 
     # ==================== Input Control ====================
 
-    def click(self, point: Point, button: int = 1) -> None:
+    def click(self, point: Point, button: int = 1) -> int:
         """
         Click at screen coordinates
 
@@ -224,12 +233,15 @@ class UnifiedRemoteDesktop:
             point: Screen coordinates (x, y)
             button: Mouse button (1=left, 2=middle, 3=right)
 
+        Returns:
+            Monotonic timestamp in nanoseconds of injection completion.
+
         Raises:
             RuntimeError: Not initialized
             InputError: Click failed
 
         Example:
-            >>> desktop.click(Point(500, 500))  # Left click
+            >>> ts = desktop.click(Point(500, 500))  # Left click
             >>> desktop.click(Point(100, 100), button=3)  # Right click
         """
         if not self._initialized:
@@ -242,6 +254,10 @@ class UnifiedRemoteDesktop:
             self._notify_pointer_button(button, pressed=True)
             time.sleep(delay)
             self._notify_pointer_button(button, pressed=False)
+            try:
+                return int(GLib.get_monotonic_time() * 1000)
+            except Exception:
+                return time.monotonic_ns()
         except Exception as e:
             raise InputError(f"Click failed: {e}") from e
 
@@ -287,15 +303,18 @@ class UnifiedRemoteDesktop:
             except Exception as e:
                 raise InputError(f"Typing failed at char '{char}': {e}") from e
 
-    def press_key(self, key: str) -> None:
+    def press_key(self, key: str) -> int:
         """
         Press and release a single key
 
         Args:
             key: Key name (e.g., "Return", "Escape", "a")
 
+        Returns:
+            Monotonic timestamp in nanoseconds of injection completion.
+
         Example:
-            >>> desktop.press_key("Return")  # Enter
+            >>> ts = desktop.press_key("Return")  # Enter
             >>> desktop.press_key("Escape")  # Esc
         """
         if not self._initialized:
@@ -308,6 +327,10 @@ class UnifiedRemoteDesktop:
             self._notify_keyboard_keysym(key, pressed=True)
             time.sleep(delay)
             self._notify_keyboard_keysym(key, pressed=False)
+            try:
+                return int(GLib.get_monotonic_time() * 1000)
+            except Exception:
+                return time.monotonic_ns()
         except Exception as e:
             raise InputError(f"Key press failed: {e}") from e
 
@@ -632,6 +655,318 @@ class UnifiedRemoteDesktop:
         except Exception:
             return None
 
+    def capture_observation(self) -> dict:
+        """
+        Capture screenshot with timestamp and stream metadata lockstep.
+
+        Guarantees a single monotonic timestamp sampled immediately upon frame
+        buffer acquisition, enabling the harness to accurately correlate
+        out-of-band AT-SPI snapshots (±50ms).
+
+        Returns:
+            Dict with:
+                - 'png': bytes (PNG image data)
+                - 'timestamp_ns': int (monotonic clock in nanoseconds)
+                - 'stream_info': Optional[dict] (stream metadata)
+                - 'screen_size': Optional[Tuple[int, int]]
+
+        Raises:
+            RuntimeError: Not initialized or capture not enabled
+            CaptureError: Screenshot capture failed
+
+        Example:
+            >>> obs = desktop.capture_observation()
+            >>> png_bytes = obs["png"]
+            >>> ts = obs["timestamp_ns"]
+        """
+        if not self._initialized:
+            raise RuntimeError("Not initialized")
+
+        if self._pipewire_node is None:
+            raise RuntimeError(
+                "Screen capture not enabled - initialize with enable_capture=True"
+            )
+
+        try:
+            # Ensure pipeline is running
+            self._ensure_pipeline()
+
+            # Get a frame from the appsink
+            sample = self._appsink.emit("pull-sample")
+            if not sample:
+                raise CaptureError("No sample available")
+
+            buffer = sample.get_buffer()
+            if not buffer:
+                raise CaptureError("No buffer in sample")
+
+            # Extract PNG data
+            success, map_info = buffer.map(Gst.MapFlags.READ)
+            if not success:
+                raise CaptureError("Failed to map buffer")
+
+            try:
+                try:
+                    timestamp_ns = int(GLib.get_monotonic_time() * 1000)
+                except Exception:
+                    timestamp_ns = time.monotonic_ns()
+
+                png_data = bytes(map_info.data)
+                return {
+                    "png": png_data,
+                    "timestamp_ns": timestamp_ns,
+                    "stream_info": self.get_stream_info(),
+                    "screen_size": self.get_screen_size(),
+                }
+            finally:
+                buffer.unmap(map_info)
+
+        except CaptureError:
+            raise
+        except Exception as e:
+            raise CaptureError(f"Observation capture failed: {e}") from e
+
+    def _ensure_raw_pipeline(self) -> None:
+        """Ensure GStreamer pipeline for raw RGB frame extraction is running"""
+        if self._raw_pipeline is not None:
+            state = self._raw_pipeline.get_state(0)[1]
+            if state == Gst.State.PLAYING:
+                return
+
+        if self._pipewire_node is None:
+            raise CaptureError("No PipeWire node available")
+
+        # Build pipeline: pipewiresrc -> videoconvert -> raw RGB -> appsink
+        pipeline_str = (
+            f"pipewiresrc path={self._pipewire_node} ! "
+            "videoconvert ! "
+            "video/x-raw,format=RGB ! "
+            "appsink name=raw_sink emit-signals=true max-buffers=1 drop=true"
+        )
+
+        try:
+            self._raw_pipeline = Gst.parse_launch(pipeline_str)
+            self._raw_appsink = self._raw_pipeline.get_by_name("raw_sink")
+
+            ret = self._raw_pipeline.set_state(Gst.State.PLAYING)
+            if ret == Gst.StateChangeReturn.FAILURE:
+                raise CaptureError("Failed to start raw GStreamer pipeline")
+
+            time.sleep(0.3)
+        except Exception as e:
+            raise CaptureError(f"Failed to setup raw GStreamer pipeline: {e}") from e
+
+    def capture_raw_rgb(self) -> dict:
+        """
+        Capture raw uncompressed RGB frame buffer (zero codec overhead).
+
+        Returns:
+            Dict with:
+                - 'buffer': bytes (raw RGB pixel buffer, len = width * height * 3)
+                - 'width': int
+                - 'height': int
+                - 'stride': int (bytes per row = width * 3)
+                - 'timestamp_ns': int (monotonic clock in nanoseconds)
+                - 'stream_info': Optional[dict]
+
+        Raises:
+            RuntimeError: Not initialized or capture not enabled
+            CaptureError: Raw frame acquisition failed
+
+        Example:
+            >>> obs = desktop.capture_raw_rgb()
+            >>> raw_bytes = obs["buffer"]
+            >>> w, h, stride = obs["width"], obs["height"], obs["stride"]
+        """
+        if not self._initialized:
+            raise RuntimeError("Not initialized")
+
+        if self._pipewire_node is None:
+            raise RuntimeError(
+                "Screen capture not enabled - initialize with enable_capture=True"
+            )
+
+        try:
+            self._ensure_raw_pipeline()
+
+            sample = self._raw_appsink.emit("pull-sample")
+            if not sample:
+                raise CaptureError("No sample available")
+
+            buffer = sample.get_buffer()
+            if not buffer:
+                raise CaptureError("No buffer in sample")
+
+            caps = sample.get_caps()
+            struct = caps.get_structure(0) if caps else None
+            width = struct.get_int("width")[1] if struct else 0
+            height = struct.get_int("height")[1] if struct else 0
+            stride = width * 3
+
+            success, map_info = buffer.map(Gst.MapFlags.READ)
+            if not success:
+                raise CaptureError("Failed to map buffer")
+
+            try:
+                try:
+                    timestamp_ns = int(GLib.get_monotonic_time() * 1000)
+                except Exception:
+                    timestamp_ns = time.monotonic_ns()
+
+                raw_data = bytes(map_info.data)
+                return {
+                    "buffer": raw_data,
+                    "width": width,
+                    "height": height,
+                    "stride": stride,
+                    "timestamp_ns": timestamp_ns,
+                    "stream_info": self.get_stream_info(),
+                }
+            finally:
+                buffer.unmap(map_info)
+
+        except CaptureError:
+            raise
+        except Exception as e:
+            raise CaptureError(f"Raw RGB capture failed: {e}") from e
+
+    def get_frame_rgb(self) -> Optional[dict]:
+        """
+        Get latest raw RGB frame non-blocking (short 1ms timeout).
+
+        Returns:
+            Dict with 'buffer', 'width', 'height', 'stride', 'timestamp_ns',
+            or None if no sample is ready.
+        """
+        if not self._initialized or self._pipewire_node is None:
+            return None
+
+        try:
+            self._ensure_raw_pipeline()
+
+            sample = self._raw_appsink.emit("try-pull-sample", 1000000)
+            if not sample:
+                return None
+
+            buffer = sample.get_buffer()
+            if not buffer:
+                return None
+
+            caps = sample.get_caps()
+            struct = caps.get_structure(0) if caps else None
+            width = struct.get_int("width")[1] if struct else 0
+            height = struct.get_int("height")[1] if struct else 0
+            stride = width * 3
+
+            success, map_info = buffer.map(Gst.MapFlags.READ)
+            if not success:
+                return None
+
+            try:
+                try:
+                    timestamp_ns = int(GLib.get_monotonic_time() * 1000)
+                except Exception:
+                    timestamp_ns = time.monotonic_ns()
+
+                raw_data = bytes(map_info.data)
+                return {
+                    "buffer": raw_data,
+                    "width": width,
+                    "height": height,
+                    "stride": stride,
+                    "timestamp_ns": timestamp_ns,
+                    "stream_info": self.get_stream_info(),
+                }
+            finally:
+                buffer.unmap(map_info)
+        except Exception:
+            return None
+
+    def is_alive(self) -> bool:
+        """
+        Check if the portal remote desktop session is active and valid.
+
+        Returns:
+            True if initialized and session handle is valid.
+        """
+        return bool(self._initialized and self._session_handle is not None)
+
+    def get_stream_info(self) -> Optional[dict]:
+        """
+        Get metadata for active ScreenCast stream.
+
+        Returns:
+            Dict containing {node_id, position, size, logical_size, scale, source_type}
+            or None if not initialized or capture not enabled.
+        """
+        if not self._initialized or self._stream_info is None:
+            return None
+        info = dict(self._stream_info)
+        if info.get("scale") is None:
+            info["scale"] = 1.0
+        if info.get("logical_size") is None and info.get("size") is not None:
+            sz = info["size"]
+            sc = info["scale"]
+            info["logical_size"] = (int(round(sz[0] / sc)), int(round(sz[1] / sc)))
+        return info
+
+    def normalize_point(self, point: Point) -> Tuple[float, float]:
+        """
+        Normalize point coordinates from stream logical pixels to [0.0, 1.0].
+
+        Uses logical_size if present, falling back to size, or get_screen_size().
+
+        Args:
+            point: Screen point in stream coordinates.
+
+        Returns:
+            (nx, ny) where nx and ny are in [0.0, 1.0].
+
+        Raises:
+            RuntimeError: If not initialized or stream size unknown.
+        """
+        if not self._initialized:
+            raise RuntimeError("Not initialized - call initialize() first")
+
+        size = None
+        if self._stream_info:
+            size = self._stream_info.get("logical_size") or self._stream_info.get("size")
+        if not size:
+            size = self.get_screen_size()
+        if not size or size[0] <= 0 or size[1] <= 0:
+            raise RuntimeError("Cannot normalize point: stream size unknown")
+
+        w, h = size
+        return (point.x / float(w), point.y / float(h))
+
+    def denormalize_point(self, nx: float, ny: float) -> Point:
+        """
+        Denormalize relative [0.0, 1.0] coordinates back to stream Point pixels.
+
+        Args:
+            nx: Normalized x coordinate [0.0, 1.0].
+            ny: Normalized y coordinate [0.0, 1.0].
+
+        Returns:
+            Point(x, y) in stream logical pixels.
+
+        Raises:
+            RuntimeError: If not initialized or stream size unknown.
+        """
+        if not self._initialized:
+            raise RuntimeError("Not initialized - call initialize() first")
+
+        size = None
+        if self._stream_info:
+            size = self._stream_info.get("logical_size") or self._stream_info.get("size")
+        if not size:
+            size = self.get_screen_size()
+        if not size or size[0] <= 0 or size[1] <= 0:
+            raise RuntimeError("Cannot denormalize point: stream size unknown")
+
+        w, h = size
+        return Point(int(round(nx * w)), int(round(ny * h)))
+
     def get_screen_size(self) -> Optional[Tuple[int, int]]:
         """
         Get screen resolution
@@ -771,14 +1106,81 @@ class UnifiedRemoteDesktop:
         if error_code != 0 or results is None:
             raise SessionError(f"Failed to start session (error code {error_code})")
 
-        # Extract PipeWire node ID for capture
+        # Extract PipeWire node ID and stream metadata for capture
         if results and enable_capture:
             streams = results.get("streams")
             if streams and len(streams) > 0:
-                stream_info = streams[0]
-                if isinstance(stream_info, tuple) and len(stream_info) >= 1:
-                    self._pipewire_node = int(stream_info[0])
-                    # Pipeline is created lazily on first capture
+                stream_entry = streams[0]
+                if isinstance(stream_entry, (tuple, list)) and len(stream_entry) >= 1:
+                    self._pipewire_node = int(stream_entry[0])
+                    props_raw = (
+                        stream_entry[1]
+                        if len(stream_entry) > 1 and isinstance(stream_entry[1], dict)
+                        else {}
+                    )
+
+                    def _unwrap_val(v):
+                        if v is None:
+                            return None
+                        if hasattr(v, "unpack"):
+                            try:
+                                return _unwrap_val(v.unpack())
+                            except Exception:
+                                pass
+                        if hasattr(v, "get_child_value"):
+                            try:
+                                n = v.n_children() if hasattr(v, "n_children") else 0
+                                if n > 0:
+                                    return tuple(_unwrap_val(v.get_child_value(i)) for i in range(n))
+                            except Exception:
+                                pass
+                        if isinstance(v, (tuple, list)):
+                            return tuple(_unwrap_val(x) for x in v)
+                        if isinstance(v, dict):
+                            return {k: _unwrap_val(x) for k, x in v.items()}
+                        return v
+
+                    def _to_int_pair(v):
+                        uv = _unwrap_val(v)
+                        if isinstance(uv, (tuple, list)) and len(uv) >= 2:
+                            try:
+                                return (int(uv[0]), int(uv[1]))
+                            except Exception:
+                                return None
+                        return None
+
+                    def _to_float(v):
+                        uv = _unwrap_val(v)
+                        if uv is not None:
+                            try:
+                                return float(uv)
+                            except Exception:
+                                return None
+                        return None
+
+                    def _to_int(v):
+                        uv = _unwrap_val(v)
+                        if uv is not None:
+                            try:
+                                return int(uv)
+                            except Exception:
+                                return None
+                        return None
+
+                    pos = _to_int_pair(props_raw.get("position"))
+                    sz = _to_int_pair(props_raw.get("size"))
+                    lsz = _to_int_pair(props_raw.get("logical_size"))
+                    scale = _to_float(props_raw.get("scale"))
+                    source_type = _to_int(props_raw.get("source_type"))
+
+                    self._stream_info = {
+                        "node_id": self._pipewire_node,
+                        "position": pos,
+                        "size": sz,
+                        "logical_size": lsz,
+                        "scale": scale,
+                        "source_type": source_type,
+                    }
 
 
     def _load_token(self) -> Optional[str]:

@@ -77,6 +77,11 @@ screenshots/
 browser_tree.txt
 output.txt
 ui_tree.txt
+wayland_tree*.txt
+wayland_recall*.json
+alo_screenshot*.png
+alo_capture*.json
+alo_screenshot*.json
 
 # Keep assets
 !assets/

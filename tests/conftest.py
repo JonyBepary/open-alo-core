@@ -71,6 +71,7 @@ _glib.MainLoop.return_value.run = MagicMock()
 _glib.MainLoop.return_value.quit = MagicMock()
 _glib.timeout_add_seconds = MagicMock(return_value=42)
 _glib.source_remove = MagicMock(return_value=True)
+_glib.get_monotonic_time = MagicMock(return_value=123456789)
 _glib.Variant = MockVariant
 
 
