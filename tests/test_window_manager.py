@@ -480,6 +480,7 @@ class TestWindowManagerZOrder:
         with patch.object(WindowManager, "_dbus_call", return_value="('[101, 102, 103]',)"):
             wm = WindowManager.__new__(WindowManager)
             wm.timeout = 5
+            wm.include_utility = False
             z_order = wm.get_window_z_order()
             assert z_order == [101, 102, 103]
 
@@ -489,6 +490,7 @@ class TestWindowManagerZOrder:
         with patch.object(WindowManager, "_dbus_call", return_value="('[]',)") :
             wm = WindowManager.__new__(WindowManager)
             wm.timeout = 5
+            wm.include_utility = False
             assert wm.get_window_z_order() == []
 
     def test_get_window_z_order_dbus_failure(self):
@@ -497,6 +499,7 @@ class TestWindowManagerZOrder:
         with patch.object(WindowManager, "_dbus_call", return_value=None):
             wm = WindowManager.__new__(WindowManager)
             wm.timeout = 5
+            wm.include_utility = False
             assert wm.get_window_z_order() == []
 
     def test_get_window_z_order_convenience_function(self):
@@ -553,3 +556,72 @@ class TestWindowManagerWaitForWindow:
             mock_wait.assert_called_once_with("Brave", match_title=True, timeout=2.0, poll_interval=0.05)
 
 
+
+
+class TestUtilityWindowFilter:
+    """include_utility=False filters Desktop-Icons/XWayland-dummy noise."""
+
+    def test_filters_dummy_and_desktop_icons(self):
+        import json
+        from unittest.mock import patch
+
+        from open_alo_core.window_manager import WindowManager
+
+        rows = [
+            {"id": 1, "wm_class": "firefox", "title": "Mozilla"},
+            {"id": 2, "wm_class": None, "title": None},          # XWayland dummy
+            {"id": 3, "wm_class": "gjs", "title": "Desktop Icons NG"},
+        ]
+        payload = f"('{json.dumps(rows)}',)"
+
+        wm = WindowManager.__new__(WindowManager)
+        wm.timeout = 5
+        wm.include_utility = False
+        with patch.object(WindowManager, "_dbus_call", return_value=payload):
+            kept = {w.id for w in wm.list_windows()}
+
+        assert kept == {1}
+
+    def test_include_utility_keeps_all(self):
+        import json
+        from unittest.mock import patch
+
+        from open_alo_core.window_manager import WindowManager
+
+        rows = [
+            {"id": 1, "wm_class": "firefox", "title": "Mozilla"},
+            {"id": 2, "wm_class": None, "title": None},
+            {"id": 3, "wm_class": "gjs", "title": "Desktop Icons NG"},
+        ]
+        payload = f"('{json.dumps(rows)}',)"
+
+        wm = WindowManager.__new__(WindowManager)
+        wm.timeout = 5
+        wm.include_utility = True
+        with patch.object(WindowManager, "_dbus_call", return_value=payload):
+            assert len(wm.list_windows()) == 3
+
+    def test_z_order_drops_utility_ids(self):
+        import json
+        from unittest.mock import patch
+
+        from open_alo_core.window_manager import WindowManager
+
+        rows = [
+            {"id": 10, "wm_class": "firefox", "title": "Mozilla"},
+            {"id": 20, "wm_class": None, "title": None},
+        ]
+        payload_list = f"('{json.dumps(rows)}',)"
+        payload_z = "(' [10, 20] ')"
+
+        wm = WindowManager.__new__(WindowManager)
+        wm.timeout = 5
+        wm.include_utility = False
+
+        responses = {"GetWindowZOrder": payload_z, "List": payload_list}
+        with patch.object(
+            WindowManager,
+            "_dbus_call",
+            lambda self, method, *a: responses.get(method),
+        ):
+            assert wm.get_window_z_order() == [10]

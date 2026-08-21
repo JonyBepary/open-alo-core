@@ -85,15 +85,28 @@ class WindowManager:
     DBUS_PATH = "/org/gnome/Shell/Extensions/Windows"
     DBUS_INTERFACE = "org.gnome.Shell.Extensions.Windows"
 
-    def __init__(self, timeout: int = 5):
+    def __init__(self, timeout: int = 5, include_utility: bool = False):
         """
         Initialize WindowManager
 
         Args:
             timeout: Default timeout for D-Bus calls in seconds
+            include_utility: Keep utility/noise windows (Desktop Icons gjs
+                layers, XWayland dummy actors with null wm_class). Default
+                False filters them from list_windows()/get_window_z_order().
         """
         self.timeout = timeout
+        self.include_utility = include_utility
         self.is_available = self._check_extension()
+
+    @staticmethod
+    def _is_utility_window(win: "WindowInfo") -> bool:
+        """Heuristic for OS noise windows the harness should not see."""
+        if not win.wm_class:
+            return True  # XWayland dummy actors (null wm_class)
+        if win.wm_class == "gjs" and (win.title or "").startswith("Desktop Icons"):
+            return True  # desktop icons layer
+        return False
 
     def _check_extension(self) -> bool:
         """Check if Window Calls extension is available"""
@@ -223,6 +236,9 @@ class WindowManager:
                 )
             )
 
+        if not self.include_utility:
+            windows = [w for w in windows if not self._is_utility_window(w)]
+
         return windows
 
     def find_window(self, query: str, match_title: bool = True) -> Optional[WindowInfo]:
@@ -301,7 +317,25 @@ class WindowManager:
         if response:
             data = self._parse_json_response(response)
             if isinstance(data, list):
-                return [int(x) for x in data if isinstance(x, (int, float))]
+                ids = [int(x) for x in data if isinstance(x, (int, float))]
+                if not self.include_utility:
+                    utility_ids = set()
+                    raw = self._dbus_call("List")
+                    parsed = self._parse_json_response(raw) if raw else None
+                    for d in parsed or []:
+                        if not isinstance(d, dict):
+                            continue
+                        probe = WindowInfo(
+                            id=d.get("id", 0),
+                            wm_class=d.get("wm_class") or "",
+                            wm_class_instance=d.get("wm_class_instance") or "",
+                            title=d.get("title") or "",
+                        )
+                        if self._is_utility_window(probe):
+                            utility_ids.add(probe.id)
+                    if utility_ids:
+                        ids = [i for i in ids if i not in utility_ids]
+                return ids
 
         # Fallback to list_windows() order (which enumerates window actors bottom-to-top)
         windows = self.list_windows()
