@@ -9,13 +9,17 @@ Demonstrates all window management capabilities:
 - Window positioning and resizing
 - Workspace management
 """
+
 import sys
 import os
 import time
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+sys.path.insert(
+    0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src")
+)
 
 from open_alo_core import WindowManager, WindowInfo, activate_window, get_focused_window
+
 
 def main():
     print("=== OPEN_ALO Window Management Demo ===\n")

@@ -150,7 +150,9 @@ def main():
         print("  ✅ Screen information (resolution)")
         print()
         print("This is the RECOMMENDED approach for AI agents!")
-        print("Use UnifiedRemoteDesktop instead of separate WaylandInput + WaylandCapture")
+        print(
+            "Use UnifiedRemoteDesktop instead of separate WaylandInput + WaylandCapture"
+        )
         print()
 
     print("✅ Session closed cleanly")
@@ -166,5 +168,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

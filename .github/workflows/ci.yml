@@ -69,18 +69,19 @@ jobs:
           libgirepository1.0-dev \
           pkg-config
 
-    - name: Install package (using system Python)
+    - name: Install test dependencies and package
       run: |
         python3 -m pip install --no-deps -e .
+        python3 -m pip install pytest pytest-cov typeguard anyio
 
-    - name: Run tests
+    - name: Run full test suite
       run: |
-        cd tests
-        python3 test_structure.py
+        python3 -m pytest tests/ --cov=open_alo_core --cov-report=term-missing
 
     - name: Test import
       run: |
         python3 -c "from open_alo_core import UnifiedRemoteDesktop, WindowManager; print('✅ OK')"
+
 
   build-check:
     name: Build Package Check

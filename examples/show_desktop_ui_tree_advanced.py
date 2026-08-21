@@ -100,12 +100,17 @@ def _extract_geometry(node) -> Tuple[Tuple[int, int], Tuple[int, int]]:
     try:
         component = node.queryComponent()
         extents = component.getExtents(pyatspi.DESKTOP_COORDS)
-        return (int(extents.x), int(extents.y)), (int(extents.width), int(extents.height))
+        return (int(extents.x), int(extents.y)), (
+            int(extents.width),
+            int(extents.height),
+        )
     except Exception:
         return (0, 0), (0, 0)
 
 
-def _rect_intersection_area(a: Tuple[int, int, int, int], b: Tuple[int, int, int, int]) -> int:
+def _rect_intersection_area(
+    a: Tuple[int, int, int, int], b: Tuple[int, int, int, int]
+) -> int:
     ax, ay, aw, ah = a
     bx, by, bw, bh = b
     if aw <= 0 or ah <= 0 or bw <= 0 or bh <= 0:
@@ -141,7 +146,9 @@ def _extract_relationships(node) -> Dict[str, str]:
     return rels
 
 
-def _traverse_accessibility_tree(root, max_depth: int, max_nodes: int) -> Tuple[Dict[str, UIElement], str]:
+def _traverse_accessibility_tree(
+    root, max_depth: int, max_nodes: int
+) -> Tuple[Dict[str, UIElement], str]:
     elements: Dict[str, UIElement] = {}
     counter = {"value": 0}
 
@@ -254,7 +261,9 @@ def _is_utility_window(win: Dict) -> bool:
     return False
 
 
-def _find_accessible_window_for_desktop_window(desktop_window: Dict, desktop_root) -> Optional[object]:
+def _find_accessible_window_for_desktop_window(
+    desktop_window: Dict, desktop_root
+) -> Optional[object]:
     window_title = _norm_text(desktop_window.get("title"))
     wm_class = _norm_text(desktop_window.get("wm_class"))
 
@@ -295,7 +304,9 @@ def _find_accessible_window_for_desktop_window(desktop_window: Dict, desktop_roo
             if window_title and acc_name == window_title:
                 score += 100
                 has_semantic_match = True
-            elif window_title and (window_title in acc_name or acc_name in window_title):
+            elif window_title and (
+                window_title in acc_name or acc_name in window_title
+            ):
                 score += 55
                 has_semantic_match = True
 
@@ -320,7 +331,12 @@ def _find_accessible_window_for_desktop_window(desktop_window: Dict, desktop_roo
             try:
                 component = candidate.queryComponent()
                 extents = component.getExtents(pyatspi.DESKTOP_COORDS)
-                acc_rect = (int(extents.x), int(extents.y), int(extents.width), int(extents.height))
+                acc_rect = (
+                    int(extents.x),
+                    int(extents.y),
+                    int(extents.width),
+                    int(extents.height),
+                )
                 overlap = _rect_intersection_area(window_rect, acc_rect)
                 if overlap > 0:
                     score += 40
@@ -371,8 +387,14 @@ def _print_tree(elements: Dict[str, UIElement], root_id: str, max_lines: int) ->
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Advanced desktop UI tree with accessibility hierarchy")
-    parser.add_argument("--all-windows", action="store_true", help="Traverse accessibility tree for all windows")
+    parser = argparse.ArgumentParser(
+        description="Advanced desktop UI tree with accessibility hierarchy"
+    )
+    parser.add_argument(
+        "--all-windows",
+        action="store_true",
+        help="Traverse accessibility tree for all windows",
+    )
     parser.add_argument(
         "--window",
         type=str,
@@ -385,10 +407,21 @@ def main() -> int:
         default=True,
         help="Skip tiny/unnamed utility windows (default: enabled)",
     )
-    parser.add_argument("--max-depth", type=int, default=8, help="Maximum tree depth per window")
-    parser.add_argument("--max-nodes", type=int, default=500, help="Maximum nodes per window")
-    parser.add_argument("--max-lines", type=int, default=160, help="Maximum printed tree lines per window")
-    parser.add_argument("--json", action="store_true", help="Also print machine-readable JSON summary")
+    parser.add_argument(
+        "--max-depth", type=int, default=8, help="Maximum tree depth per window"
+    )
+    parser.add_argument(
+        "--max-nodes", type=int, default=500, help="Maximum nodes per window"
+    )
+    parser.add_argument(
+        "--max-lines",
+        type=int,
+        default=160,
+        help="Maximum printed tree lines per window",
+    )
+    parser.add_argument(
+        "--json", action="store_true", help="Also print machine-readable JSON summary"
+    )
     args = parser.parse_args()
 
     if pyatspi is None:
@@ -435,14 +468,19 @@ def main() -> int:
     # Window-level attention: filter by --window substring/glob
     if args.window:
         import fnmatch
+
         pattern = args.window.strip()
+
         def matches(win):
             t = _norm_text(win.get("title"))
             c = _norm_text(win.get("wm_class"))
             return (
-                fnmatch.fnmatch(t, pattern) or fnmatch.fnmatch(c, pattern)
-                or pattern in t or pattern in c
+                fnmatch.fnmatch(t, pattern)
+                or fnmatch.fnmatch(c, pattern)
+                or pattern in t
+                or pattern in c
             )
+
         windows = [w for w in windows if matches(w)]
         if not windows:
             print(f"No windows matched --window '{pattern}'")
