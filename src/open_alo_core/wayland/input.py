@@ -163,11 +163,12 @@ class WaylandInput:
         if not self._initialized:
             raise RuntimeError("Not initialized - call initialize() first")
 
+        delay = getattr(self, "_pause", 0.05) or 0.05
         try:
-            self._notify_pointer_motion(point.x, point.y)
-            time.sleep(0.05)  # Small delay between move and click
+            self._notify_pointer_motion_absolute(point.x, point.y)
+            time.sleep(delay)  # Small delay between move and click
             self._notify_pointer_button(button, pressed=True)
-            time.sleep(0.05)
+            time.sleep(delay)
             self._notify_pointer_button(button, pressed=False)
         except Exception as e:
             raise InputError(f"Click failed: {e}") from e
@@ -187,9 +188,10 @@ class WaylandInput:
             raise RuntimeError("Not initialized")
 
         try:
-            self._notify_pointer_motion(point.x, point.y)
+            self._notify_pointer_motion_absolute(point.x, point.y)
         except Exception as e:
             raise InputError(f"Mouse move failed: {e}") from e
+
 
     def type_text(self, text: str, interval: float = 0.01) -> None:
         """
@@ -237,10 +239,11 @@ class WaylandInput:
             raise RuntimeError("Not initialized")
 
         key = normalize_key(key)
+        delay = getattr(self, "_pause", 0.05) or 0.05
 
         try:
             self._notify_keyboard_keysym(key, pressed=True)
-            time.sleep(0.05)
+            time.sleep(delay)
             self._notify_keyboard_keysym(key, pressed=False)
         except Exception as e:
             raise InputError(f"Key press failed: {e}") from e
@@ -266,17 +269,20 @@ class WaylandInput:
             raise RuntimeError("Not initialized")
 
         keys = [normalize_key(k) for k in keys]
+        delay = getattr(self, "_pause", 0.05) or 0.05
 
         try:
             # Press all keys
             for key in keys:
                 self._notify_keyboard_keysym(key, pressed=True)
-                time.sleep(0.05)
+                time.sleep(delay)
 
             # Release in reverse order
             for key in reversed(keys):
                 self._notify_keyboard_keysym(key, pressed=False)
-                time.sleep(0.05)
+                time.sleep(delay)
+
+
 
         except Exception as e:
             raise InputError(f"Key combo failed: {e}") from e
@@ -343,9 +349,10 @@ class WaylandInput:
         # Save token for future sessions
         if persist_mode > 0 and results and "restore_token" in results:
             restore_token = results["restore_token"]
-            if isinstance(restore_token, GLib.Variant):
+            if hasattr(restore_token, "get_string"):
                 restore_token = restore_token.get_string()
-            self._save_token(restore_token)
+            self._save_token(str(restore_token))
+
 
         # Start the remote desktop session
         self._start_session()
@@ -390,6 +397,38 @@ class WaylandInput:
         except Exception:
             pass  # Token save failure is not fatal
 
+    def _notify_pointer_motion_absolute(self, x: float, y: float) -> None:
+        """Send absolute pointer motion event to portal"""
+        options = {}
+        try:
+            self._portal.call_sync(
+                "NotifyPointerMotionAbsolute",
+                GLib.Variant(
+                    "(oa{sv}udd)",
+                    (self._session_handle, options, 0, float(x), float(y)),
+                ),
+                Gio.DBusCallFlags.NONE,
+                -1,
+                None,
+            )
+        except Exception:
+            try:
+                self._portal.call_sync(
+                    "NotifyPointerMotionAbsolute",
+                    GLib.Variant(
+                        "(oa{sv}dd)",
+                        (self._session_handle, options, float(x), float(y)),
+                    ),
+                    Gio.DBusCallFlags.NONE,
+                    -1,
+                    None,
+                )
+            except Exception as e_abs:
+                raise InputError(
+                    f"Absolute pointer motion failed on portal: {e_abs}"
+                ) from e_abs
+
+
     def _notify_pointer_motion(self, x: int, y: int) -> None:
         """Send pointer motion event to portal"""
         options = {}
@@ -402,6 +441,7 @@ class WaylandInput:
             -1,
             None,
         )
+
 
     def _notify_pointer_button(self, button: int, pressed: bool) -> None:
         """Send pointer button event"""

@@ -48,41 +48,65 @@ def portal_request(
 
     loop = GLib.MainLoop()
     response_data: list = [None, None]  # [error_code, results]
-
-    result = portal.call_sync(
-        method,
-        params,
-        Gio.DBusCallFlags.NONE,
-        timeout_seconds * 1000,
-        None,
-    )
-
-    request_path = result[0]
+    request_path: Optional[str] = None
+    early_response = None
 
     def on_response(
         connection, sender: str, path: str, iface: str, signal: str, params_signal
     ) -> None:
-        nonlocal response_data
+        nonlocal response_data, early_response
         error_code, results = params_signal
-        response_data = [error_code, results]
-        loop.quit()
+        if request_path is not None:
+            if path is None or path == request_path:
+                response_data = [error_code, results]
+                loop.quit()
+        else:
+            early_response = (path, error_code, results)
 
-    sub_id = bus.signal_subscribe(
-        portal_bus_name,
-        "org.freedesktop.portal.Request",
-        "Response",
-        request_path,
-        None,
-        Gio.DBusSignalFlags.NONE,
-        on_response,
-    )
+    sub_id = None
+    timeout_id = None
+    try:
+        # Subscribe and start timeout before calling to eliminate race condition
+        sub_id = bus.signal_subscribe(
+            portal_bus_name,
+            "org.freedesktop.portal.Request",
+            "Response",
+            None,
+            None,
+            Gio.DBusSignalFlags.NONE,
+            on_response,
+        )
 
-    GLib.timeout_add_seconds(timeout_seconds, loop.quit)
-    loop.run()
-    bus.signal_unsubscribe(sub_id)
+        timeout_id = GLib.timeout_add_seconds(timeout_seconds, loop.quit)
+
+        result = portal.call_sync(
+            method,
+            params,
+            Gio.DBusCallFlags.NONE,
+            timeout_seconds * 1000,
+            None,
+        )
+
+        request_path = result[0] if result else None
+
+        if early_response is not None and (
+            early_response[0] is None or request_path is None or early_response[0] == request_path
+        ):
+            response_data = [early_response[1], early_response[2]]
+        elif response_data[0] is None:
+            loop.run()
+
+    finally:
+        if timeout_id is not None:
+            GLib.source_remove(timeout_id)
+        if sub_id is not None:
+            bus.signal_unsubscribe(sub_id)
 
     error_code, results = response_data
     return error_code, results
+
+
+
 
 
 def char_to_keysym(char: str) -> int:
@@ -118,8 +142,14 @@ def char_to_keysym(char: str) -> int:
     if char in keysym_map:
         return keysym_map[char]
 
-    # For single characters, use Unicode value (valid keysym)
+    # For single characters, use Unicode keysym encoding:
+    # Latin-1 (<= 0xFF) maps directly to keysym
+    # Unicode codepoints > 0xFF map to 0x01000000 | codepoint
     if len(char) == 1:
-        return ord(char)
+        cp = ord(char)
+        if cp <= 0xFF:
+            return cp
+        return 0x01000000 | cp
 
     return 0
+

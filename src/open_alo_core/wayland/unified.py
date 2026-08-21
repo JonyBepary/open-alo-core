@@ -15,9 +15,10 @@ Key features:
 import json
 import time
 import uuid
+from contextlib import contextmanager
 from io import BytesIO
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Generator, List, Optional, Tuple
 
 import gi
 
@@ -108,6 +109,11 @@ class UnifiedRemoteDesktop:
         # GStreamer pipeline for capture
         self._pipeline: Optional[Gst.Pipeline] = None
         self._appsink: Optional[Gst.Element] = None
+
+        # Config properties
+        self._pause = 0.05
+        self._fail_safe = False
+        self._touch_mode = False
 
     def __enter__(self) -> "UnifiedRemoteDesktop":
         """Context manager entry"""
@@ -229,11 +235,12 @@ class UnifiedRemoteDesktop:
         if not self._initialized:
             raise RuntimeError("Not initialized - call initialize() first")
 
+        delay = self._pause if self._pause > 0 else 0.05
         try:
-            self._notify_pointer_motion(point.x, point.y)
-            time.sleep(0.05)
+            self._notify_pointer_motion_absolute(point.x, point.y)
+            time.sleep(delay)
             self._notify_pointer_button(button, pressed=True)
-            time.sleep(0.05)
+            time.sleep(delay)
             self._notify_pointer_button(button, pressed=False)
         except Exception as e:
             raise InputError(f"Click failed: {e}") from e
@@ -252,9 +259,10 @@ class UnifiedRemoteDesktop:
             raise RuntimeError("Not initialized")
 
         try:
-            self._notify_pointer_motion(point.x, point.y)
+            self._notify_pointer_motion_absolute(point.x, point.y)
         except Exception as e:
             raise InputError(f"Mouse move failed: {e}") from e
+
 
     def type_text(self, text: str, interval: float = 0.01) -> None:
         """
@@ -294,10 +302,11 @@ class UnifiedRemoteDesktop:
             raise RuntimeError("Not initialized")
 
         key = normalize_key(key)
+        delay = self._pause if self._pause > 0 else 0.05
 
         try:
             self._notify_keyboard_keysym(key, pressed=True)
-            time.sleep(0.05)
+            time.sleep(delay)
             self._notify_keyboard_keysym(key, pressed=False)
         except Exception as e:
             raise InputError(f"Key press failed: {e}") from e
@@ -318,20 +327,210 @@ class UnifiedRemoteDesktop:
             raise RuntimeError("Not initialized")
 
         keys = [normalize_key(k) for k in keys]
+        delay = self._pause if self._pause > 0 else 0.05
 
         try:
             # Press all keys
             for key in keys:
                 self._notify_keyboard_keysym(key, pressed=True)
-                time.sleep(0.05)
+                time.sleep(delay)
 
             # Release in reverse order
             for key in reversed(keys):
                 self._notify_keyboard_keysym(key, pressed=False)
-                time.sleep(0.05)
+                time.sleep(delay)
 
         except Exception as e:
             raise InputError(f"Key combo failed: {e}") from e
+
+
+    def scroll(
+        self, clicks: int, x: Optional[int] = None, y: Optional[int] = None
+    ) -> None:
+        """
+        Scroll vertically (mouse wheel).
+
+        Args:
+            clicks: Number of wheel clicks. Positive = scroll up, Negative = scroll down.
+            x: Optional X coordinate to move cursor before scrolling.
+            y: Optional Y coordinate to move cursor before scrolling.
+
+        Raises:
+            InputError: Scroll failed
+
+        Example:
+            >>> desktop.scroll(-3)            # Scroll down 3 clicks
+            >>> desktop.scroll(5, x=100, y=200)  # Move to (100,200) then scroll up
+        """
+        if not self._initialized:
+            raise RuntimeError("Not initialized - call initialize() first")
+        try:
+            if x is not None and y is not None:
+                self._notify_pointer_motion(x, y)
+                time.sleep(self._pause)
+            self._portal.call_sync(
+                "NotifyPointerAxisDiscrete",
+                GLib.Variant("(oa{sv}ui)", (self._session_handle, {}, 0, clicks)),
+                Gio.DBusCallFlags.NONE,
+                -1,
+                None,
+            )
+        except Exception as e:
+            raise InputError(f"Scroll failed: {e}") from e
+
+    def hscroll(
+        self, clicks: int, x: Optional[int] = None, y: Optional[int] = None
+    ) -> None:
+        """Horizontal scroll. Positive=right, Negative=left."""
+        if not self._initialized:
+            raise RuntimeError("Not initialized - call initialize() first")
+        try:
+            if x is not None and y is not None:
+                self._notify_pointer_motion(x, y)
+                time.sleep(self._pause)
+            self._portal.call_sync(
+                "NotifyPointerAxisDiscrete",
+                GLib.Variant("(oa{sv}ui)", (self._session_handle, {}, 1, clicks)),
+                Gio.DBusCallFlags.NONE,
+                -1,
+                None,
+            )
+        except Exception as e:
+            raise InputError(f"Horizontal scroll failed: {e}") from e
+
+    def smooth_scroll(self, dx: float = 0, dy: float = 0, finish: bool = False) -> None:
+        """Smooth scroll (touchpad-style)."""
+        if not self._initialized:
+            raise RuntimeError("Not initialized - call initialize() first")
+        try:
+            options = {}
+            if finish:
+                options["finish"] = GLib.Variant("b", True)
+            self._portal.call_sync(
+                "NotifyPointerAxis",
+                GLib.Variant("(oa{sv}dd)", (self._session_handle, options, dx, dy)),
+                Gio.DBusCallFlags.NONE,
+                -1,
+                None,
+            )
+        except Exception as e:
+            raise InputError(f"Smooth scroll failed: {e}") from e
+
+    def drag(
+        self, start: Point, end: Point, button: int = 1, duration: float = 0.0
+    ) -> None:
+        """Drag from start to end with button held."""
+        if not self._initialized:
+            raise RuntimeError("Not initialized - call initialize() first")
+        button_pressed = False
+        try:
+            self._notify_pointer_motion(start.x, start.y)
+            time.sleep(self._pause)
+            self._notify_pointer_button(button, pressed=True)
+            button_pressed = True
+            time.sleep(self._pause)
+            if duration > 0:
+                steps = max(int(duration / 0.05), 5)
+                for i in range(1, steps + 1):
+                    t = i / steps
+                    x = int(start.x + (end.x - start.x) * t)
+                    y = int(start.y + (end.y - start.y) * t)
+                    self._notify_pointer_motion(x, y)
+                    time.sleep(self._pause)
+            else:
+                self._notify_pointer_motion(end.x, end.y)
+                time.sleep(self._pause)
+        except Exception as e:
+            raise InputError(f"Drag failed: {e}") from e
+        finally:
+            if button_pressed:
+                try:
+                    self._notify_pointer_button(button, pressed=False)
+                except Exception:
+                    pass
+
+    def swipe(
+        self,
+        start: Point,
+        end: Point,
+        duration: float = 0.3,
+        button: int = 1,
+        steps: int = 10,
+    ) -> None:
+        """Smooth drag with intermediate steps for natural motion."""
+        if not self._initialized:
+            raise RuntimeError("Not initialized - call initialize() first")
+        button_pressed = False
+        try:
+            self._notify_pointer_motion(start.x, start.y)
+            time.sleep(self._pause)
+            self._notify_pointer_button(button, pressed=True)
+            button_pressed = True
+            time.sleep(self._pause)
+            for i in range(1, steps + 1):
+                t = i / steps
+                x = int(start.x + (end.x - start.x) * t)
+                y = int(start.y + (end.y - start.y) * t)
+                self._notify_pointer_motion(x, y)
+                time.sleep(duration / steps)
+        except Exception as e:
+            raise InputError(f"Swipe failed: {e}") from e
+        finally:
+            if button_pressed:
+                try:
+                    self._notify_pointer_button(button, pressed=False)
+                except Exception:
+                    pass
+
+
+    @contextmanager
+    def hold_key(self, key: str) -> Generator[None, None, None]:
+        """Context manager that holds a key while inside the block."""
+        if not self._initialized:
+            raise RuntimeError("Not initialized - call initialize() first")
+        key = normalize_key(key)
+        try:
+            self._notify_keyboard_keysym(key, pressed=True)
+            time.sleep(self._pause)
+            yield
+        finally:
+            self._notify_keyboard_keysym(key, pressed=False)
+            time.sleep(self._pause)
+
+    def double_click(
+        self, point: Point, button: int = 1, interval: float = 0.1
+    ) -> None:
+        """Two rapid clicks at position."""
+        if not self._initialized:
+            raise RuntimeError("Not initialized - call initialize() first")
+        self.click(point, button)
+        time.sleep(interval)
+        self.click(point, button)
+
+    def move_mouse_relative(self, dx: int, dy: int) -> None:
+        """Move mouse relative to current position."""
+        if not self._initialized:
+            raise RuntimeError("Not initialized - call initialize() first")
+        try:
+            self._portal.call_sync(
+                "NotifyPointerMotion",
+                GLib.Variant(
+                    "(oa{sv}dd)", (self._session_handle, {}, float(dx), float(dy))
+                ),
+                Gio.DBusCallFlags.NONE,
+                -1,
+                None,
+            )
+        except Exception as e:
+            raise InputError(f"Relative move failed: {e}") from e
+
+    def press_keys(self, keys: List[str], interval: float = 0.1) -> None:
+        """Press multiple keys in sequence."""
+        if not self._initialized:
+            raise RuntimeError("Not initialized - call initialize() first")
+        for key in keys:
+            self.press_key(key)
+            time.sleep(interval)
 
     # ==================== Screen Capture ====================
 
@@ -382,6 +581,8 @@ class UnifiedRemoteDesktop:
             finally:
                 buffer.unmap(map_info)
 
+        except CaptureError:
+            raise
         except Exception as e:
             raise CaptureError(f"Screenshot failed: {e}") from e
 
@@ -406,10 +607,11 @@ class UnifiedRemoteDesktop:
             return None
 
         try:
+            # Ensure pipeline is running
             self._ensure_pipeline()
 
-            # Try to pull sample (non-blocking)
-            sample = self._appsink.emit("try-pull-sample", 0)
+            # Try to pull latest sample (non-blocking with short timeout)
+            sample = self._appsink.emit("try-pull-sample", 1000000)  # 1ms timeout
             if not sample:
                 return None
 
@@ -422,7 +624,8 @@ class UnifiedRemoteDesktop:
                 return None
 
             try:
-                return bytes(map_info.data)
+                png_data = bytes(map_info.data)
+                return png_data
             finally:
                 buffer.unmap(map_info)
 
@@ -458,9 +661,10 @@ class UnifiedRemoteDesktop:
 
         return None
 
-    # ==================== Private Portal Methods ====================
 
-    def _create_session(self, persist_mode: int, enable_capture: bool) -> None:
+    # ==================== Internal Session Management ====================
+
+    def _create_session(self, persist_mode: int = 2, enable_capture: bool = True) -> None:
         """Create unified session with both input and capture"""
         token = uuid.uuid4().hex[:8]
         options = {
@@ -525,9 +729,9 @@ class UnifiedRemoteDesktop:
         # Save restore token from response
         if persist_mode > 0 and results is not None and "restore_token" in results:
             restore_token = results["restore_token"]
-            if isinstance(restore_token, GLib.Variant):
+            if hasattr(restore_token, "get_string"):
                 restore_token = restore_token.get_string()
-            self._save_token(restore_token)
+            self._save_token(str(restore_token))
 
     def _select_sources(self) -> None:
         """Select capture sources (monitor/window)"""
@@ -564,17 +768,18 @@ class UnifiedRemoteDesktop:
             GLib.Variant("(osa{sv})", (self._session_handle, "", options)),
         )
 
-        if enable_capture and (error_code != 0 or results is None):
-            raise SessionError("Failed to start session")
+        if error_code != 0 or results is None:
+            raise SessionError(f"Failed to start session (error code {error_code})")
 
         # Extract PipeWire node ID for capture
-        if results:
+        if results and enable_capture:
             streams = results.get("streams")
             if streams and len(streams) > 0:
                 stream_info = streams[0]
                 if isinstance(stream_info, tuple) and len(stream_info) >= 1:
                     self._pipewire_node = int(stream_info[0])
                     # Pipeline is created lazily on first capture
+
 
     def _load_token(self) -> Optional[str]:
         """Load restore token from disk"""
@@ -635,8 +840,41 @@ class UnifiedRemoteDesktop:
 
     # ==================== Private Input Methods ====================
 
+    def _notify_pointer_motion_absolute(self, x: float, y: float) -> None:
+        """Send absolute pointer motion event via RemoteDesktop portal"""
+        options = {}
+        stream_id = getattr(self, "_pipewire_node", 0) or 0
+        try:
+            self._portal.call_sync(
+                "NotifyPointerMotionAbsolute",
+                GLib.Variant(
+                    "(oa{sv}udd)",
+                    (self._session_handle, options, int(stream_id), float(x), float(y)),
+                ),
+                Gio.DBusCallFlags.NONE,
+                -1,
+                None,
+            )
+        except Exception:
+            try:
+                self._portal.call_sync(
+                    "NotifyPointerMotionAbsolute",
+                    GLib.Variant(
+                        "(oa{sv}dd)",
+                        (self._session_handle, options, float(x), float(y)),
+                    ),
+                    Gio.DBusCallFlags.NONE,
+                    -1,
+                    None,
+                )
+            except Exception as e_abs:
+                raise InputError(
+                    f"Absolute pointer motion failed on portal: {e_abs}"
+                ) from e_abs
+
+
     def _notify_pointer_motion(self, x: int, y: int) -> None:
-        """Send pointer motion event"""
+        """Send relative pointer motion event"""
         options = {}
         self._portal.call_sync(
             "NotifyPointerMotion",
@@ -647,6 +885,7 @@ class UnifiedRemoteDesktop:
             -1,
             None,
         )
+
 
     def _notify_pointer_button(self, button: int, pressed: bool) -> None:
         """Send pointer button event"""
@@ -675,6 +914,35 @@ class UnifiedRemoteDesktop:
             -1,
             None,
         )
+
+    # ==================== Config Properties ====================
+
+    @property
+    def pause(self) -> float:
+        """Delay between actions (seconds). Default 0.05."""
+        return self._pause
+
+    @pause.setter
+    def pause(self, value: float) -> None:
+        self._pause = max(0.0, float(value))
+
+    @property
+    def fail_safe(self) -> bool:
+        """Enable fail-safe mode. When True, raise FailSafeException on abort."""
+        return self._fail_safe
+
+    @fail_safe.setter
+    def fail_safe(self, value: bool) -> None:
+        self._fail_safe = bool(value)
+
+    @property
+    def touch_mode(self) -> bool:
+        """When True, use touch events instead of mouse."""
+        return self._touch_mode
+
+    @touch_mode.setter
+    def touch_mode(self, value: bool) -> None:
+        self._touch_mode = bool(value)
 
 
 # ==================== Convenience Functions ====================

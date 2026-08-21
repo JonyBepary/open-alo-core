@@ -134,6 +134,8 @@ class WaylandCapture:
 
             return CaptureResult(data=frame_data, source_type=source_type, size=size)
 
+
+
         except Exception as e:
             raise CaptureError(f"Screen capture failed: {e}") from e
         finally:
@@ -250,15 +252,17 @@ class WaylandCapture:
             start_time = time.time()
 
             while time.time() - start_time < 10:
-                sample = appsink.emit("pull-sample")
+                sample = appsink.emit("try-pull-sample", 500000000)  # 500ms timeout per attempt
                 if sample:
                     buffer = sample.get_buffer()
-                    success, mapinfo = buffer.map(Gst.MapFlags.READ)
-                    if success:
-                        frame_data = bytes(mapinfo.data)
-                        buffer.unmap(mapinfo)
-                        break
+                    if buffer:
+                        success, mapinfo = buffer.map(Gst.MapFlags.READ)
+                        if success:
+                            frame_data = bytes(mapinfo.data)
+                            buffer.unmap(mapinfo)
+                            break
                 time.sleep(0.05)
+
 
             pipeline.set_state(Gst.State.NULL)
 
@@ -271,3 +275,5 @@ class WaylandCapture:
             raise
         except Exception as e:
             raise CaptureError(f"GStreamer error: {e}") from e
+
+
