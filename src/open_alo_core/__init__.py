@@ -31,6 +31,11 @@ __all__ = [
     "Point",
     "Size",
     "Rect",
+    "AffineTransform2D",
+    # Calibration
+    "solve_affine",
+    "residual",
+    "RESIDUAL_LIMIT_PX",
     # Constants
     "BUTTON_LEFT",
     "BUTTON_MIDDLE",
@@ -74,6 +79,8 @@ from .types import (
     Size,
     normalize_key,
 )
+from .geometry import AffineTransform2D
+from .calibration import solve_affine, residual, RESIDUAL_LIMIT_PX
 
 # Utilities
 from .utils import (
