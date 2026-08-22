@@ -172,17 +172,35 @@ class WindowManager:
         if not response:
             return None
 
-        # Handle format: ('[...]',) or ('...',)
-        if response.startswith("('") and response.endswith("',)"):
-            json_str = response[2:-3]  # Remove (' and ',)
-            # Unescape unicode sequences
-            json_str = json_str.encode().decode("unicode_escape")
-            return json.loads(json_str)
+        # Handle gdbus format: ("...",) or ('...', )
+        r = response.strip()
+        if r.startswith('("') and (r.endswith('",)') or r.endswith('")')):
+            end_idx = r.rfind('"')
+            str_literal = r[1 : end_idx + 1]
+            try:
+                unquoted = json.loads(str_literal)
+                if isinstance(unquoted, str):
+                    try:
+                        return json.loads(unquoted)
+                    except Exception:
+                        return unquoted
+                return unquoted
+            except Exception:
+                pass
+
+        if r.startswith("('") and (r.endswith("',)") or r.endswith("')")):
+            end_idx = r.rfind("'")
+            json_str = r[2 : end_idx]
+            try:
+                json_str = json_str.encode().decode("unicode_escape")
+                return json.loads(json_str)
+            except Exception:
+                pass
 
         # Fallback: try direct parsing
         try:
-            return json.loads(response)
-        except:
+            return json.loads(r)
+        except Exception:
             return None
 
     # ==================== Window Listing and Search ====================
@@ -424,9 +442,24 @@ class WindowManager:
         response = self._dbus_call("GetTitle", window_id)
         if not response:
             return None
-        # Response format: ('title',) or ('"title"',)
-        if response.startswith("('") and response.endswith("',)"):
-            inner = response[2:-3]
+        # Response format: ('title',) or ('"title"',) or ("title",) or ("\"title\"",)
+        r = response.strip()
+        if r.startswith('("') and (r.endswith('",)') or r.endswith('")')):
+            end_idx = r.rfind('"')
+            try:
+                unquoted = json.loads(r[1 : end_idx + 1])
+                if isinstance(unquoted, str):
+                    try:
+                        return json.loads(unquoted)
+                    except Exception:
+                        return unquoted
+                return unquoted
+            except Exception:
+                return r[2 : end_idx]
+
+        if r.startswith("('") and (r.endswith("',)") or r.endswith("')")):
+            end_idx = r.rfind("'")
+            inner = r[2 : end_idx]
             if inner.startswith('"') and inner.endswith('"'):
                 try:
                     return json.loads(inner)
