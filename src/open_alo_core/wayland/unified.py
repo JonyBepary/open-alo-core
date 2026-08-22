@@ -29,7 +29,7 @@ gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib, Gst
 
 from ..exceptions import CaptureError, InputError, PermissionDenied, SessionError
-from ..types import Point, normalize_key
+from ..types import Point, StreamGeometry, normalize_key
 from ._portal_helpers import char_to_keysym, portal_request
 
 # Linux evdev button codes (linux/input-event-codes.h). The RemoteDesktop
@@ -910,24 +910,34 @@ class UnifiedRemoteDesktop:
         """
         return bool(self._initialized and self._session_handle is not None)
 
-    def get_stream_info(self) -> Optional[dict]:
+    def get_stream_info(self) -> Optional[StreamGeometry]:
         """
         Get metadata for active ScreenCast stream.
 
         Returns:
-            Dict containing {node_id, position, size, logical_size, scale, source_type}
+            StreamGeometry containing {node_id, position, size, logical_size, scale, source_type}
             or None if not initialized or capture not enabled.
         """
         if not self._initialized or self._stream_info is None:
             return None
         info = dict(self._stream_info)
-        if info.get("scale") is None:
-            info["scale"] = 1.0
-        if info.get("logical_size") is None and info.get("size") is not None:
-            sz = info["size"]
-            sc = info["scale"]
-            info["logical_size"] = (int(round(sz[0] / sc)), int(round(sz[1] / sc)))
-        return info
+        scale = float(info.get("scale") or 1.0)
+        size = tuple(info.get("size") or (1920, 1080))
+        pos = tuple(info.get("position") or (0, 0))
+        logical_size = info.get("logical_size")
+        if logical_size is None and size is not None:
+            logical_size = (int(round(size[0] / scale)), int(round(size[1] / scale)))
+        else:
+            logical_size = tuple(logical_size or size)
+
+        return StreamGeometry(
+            position=(int(pos[0]), int(pos[1])),
+            size=(int(size[0]), int(size[1])),
+            logical_size=(int(logical_size[0]), int(logical_size[1])),
+            scale=scale,
+            node_id=info.get("node_id"),
+            source_type=info.get("source_type"),
+        )
 
     def normalize_point(self, point: Point) -> Tuple[float, float]:
         """

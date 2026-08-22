@@ -66,6 +66,18 @@ class WindowInfo:
         return f"WindowInfo(id={self.id}, wm_class='{self.wm_class}', title='{title_str}', focus={self.focus})"
 
 
+def is_utility_window(win: "WindowInfo") -> bool:
+    """
+    Heuristic for identifying desktop utility/noise windows (e.g. desktop icon layer,
+    background panels, XWayland dummy actors with null wm_class).
+    """
+    if not win.wm_class:
+        return True  # XWayland dummy actors (null wm_class)
+    if win.wm_class == "gjs" and (win.title or "").startswith("Desktop Icons"):
+        return True  # desktop icons layer
+    return False
+
+
 class WindowManager:
     """
     Window Manager for GNOME Shell via D-Bus
@@ -84,6 +96,7 @@ class WindowManager:
     DBUS_DEST = "org.gnome.Shell"
     DBUS_PATH = "/org/gnome/Shell/Extensions/Windows"
     DBUS_INTERFACE = "org.gnome.Shell.Extensions.Windows"
+    _is_utility_window = staticmethod(is_utility_window)
 
     def __init__(self, timeout: int = 5, include_utility: bool = False):
         """
@@ -98,15 +111,6 @@ class WindowManager:
         self.timeout = timeout
         self.include_utility = include_utility
         self.is_available = self._check_extension()
-
-    @staticmethod
-    def _is_utility_window(win: "WindowInfo") -> bool:
-        """Heuristic for OS noise windows the harness should not see."""
-        if not win.wm_class:
-            return True  # XWayland dummy actors (null wm_class)
-        if win.wm_class == "gjs" and (win.title or "").startswith("Desktop Icons"):
-            return True  # desktop icons layer
-        return False
 
     def _check_extension(self) -> bool:
         """Check if Window Calls extension is available"""

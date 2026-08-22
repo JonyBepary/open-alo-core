@@ -156,3 +156,58 @@ class TestNormalizeKey:
         """All KEY_ALIASES values should round-trip."""
         for alias, standard in KEY_ALIASES.items():
             assert normalize_key(alias) == standard
+
+
+class TestStreamGeometry:
+    """StreamGeometry dataclass."""
+
+    def test_construction_and_properties(self):
+        from open_alo_core import StreamGeometry
+        sg = StreamGeometry(
+            position=(100, 200),
+            size=(1920, 1080),
+            logical_size=(1920, 1080),
+            scale=1.0,
+            node_id=42,
+            source_type=1,
+        )
+        assert sg.position == (100, 200)
+        assert sg.size == (1920, 1080)
+        assert sg.width == 1920
+        assert sg.height == 1080
+        assert sg.rect == Rect(100, 200, 1920, 1080)
+        assert sg.node_id == 42
+        assert sg.source_type == 1
+
+    def test_is_in_stream(self):
+        from open_alo_core import StreamGeometry
+        sg = StreamGeometry(position=(0, 0), size=(1920, 1080))
+        assert sg.is_in_stream(Rect(100, 100, 200, 200)) is True
+        assert sg.is_in_stream(Rect(2000, 100, 100, 100)) is False
+        assert sg.is_in_stream(Rect(0, 0, 1, 1)) is False  # Degenerate
+
+    def test_clamp_to_stream(self):
+        from open_alo_core import StreamGeometry
+        sg = StreamGeometry(position=(0, 0), size=(1920, 1080))
+        clamped = sg.clamp_to_stream(Rect(-50, -50, 200, 200))
+        assert clamped == Rect(0, 0, 150, 150)
+        assert sg.clamp_to_stream(Rect(2500, 2500, 100, 100)) is None
+
+    def test_coordinate_mapping(self):
+        from open_alo_core import StreamGeometry
+        sg = StreamGeometry(position=(100, 50), size=(1920, 1080))
+        pt_stream = Point(20, 30)
+        pt_global = sg.stream_to_global_point(pt_stream)
+        assert pt_global == Point(120, 80)
+        assert sg.global_to_stream_point(pt_global) == pt_stream
+
+    def test_dict_compatibility(self):
+        from open_alo_core import StreamGeometry
+        sg = StreamGeometry(position=(0, 0), size=(1920, 1080), scale=1.5)
+        assert sg["size"] == (1920, 1080)
+        assert sg["scale"] == 1.5
+        assert sg.get("position") == (0, 0)
+        assert sg.get("nonexistent", "fallback") == "fallback"
+        d = sg.to_dict()
+        assert d["size"] == (1920, 1080)
+        assert d["scale"] == 1.5

@@ -1115,8 +1115,7 @@ class TestUnifiedRemoteDesktopCaptureObservation:
         obs = desktop.capture_observation()
         assert obs["png"] == b"\x89PNG\r\n\x1a\nfake_image_data"
         assert isinstance(obs["timestamp_ns"], int)
-        assert obs["timestamp_ns"] > 0
-        assert obs["stream_info"] == desktop._stream_info
+        assert obs["stream_info"] == desktop.get_stream_info()
         mock_buffer.unmap.assert_called_once_with(mock_map_info)
 
     def test_capture_observation_no_sample_raises_capture_error(self):

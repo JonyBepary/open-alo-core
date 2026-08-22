@@ -27,11 +27,15 @@ __all__ = [
     "list_windows",
     "activate_window",
     "wait_for_window",
-    # Types
+    # Types & Geometry
     "Point",
     "Size",
     "Rect",
+    "StreamGeometry",
     "AffineTransform2D",
+    # Preflight validation
+    "GeometricPreflight",
+    "GeometricPreflightVerdict",
     # Calibration
     "solve_affine",
     "residual",
@@ -40,6 +44,8 @@ __all__ = [
     "BUTTON_LEFT",
     "BUTTON_MIDDLE",
     "BUTTON_RIGHT",
+    # Window management helpers
+    "is_utility_window",
     # Exceptions
     "CoreError",
     "PermissionDenied",
@@ -77,9 +83,11 @@ from .types import (
     Point,
     Rect,
     Size,
+    StreamGeometry,
     normalize_key,
 )
 from .geometry import AffineTransform2D
+from .preflight import GeometricPreflight, GeometricPreflightVerdict
 from .calibration import solve_affine, residual, RESIDUAL_LIMIT_PX
 
 # Utilities
@@ -108,6 +116,7 @@ from .window_manager import (
     find_window,
     get_focused_window,
     get_window_z_order,
+    is_utility_window,
     list_windows,
     wait_for_window,
 )
