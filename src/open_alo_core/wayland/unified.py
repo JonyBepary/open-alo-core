@@ -32,6 +32,14 @@ from ..exceptions import CaptureError, InputError, PermissionDenied, SessionErro
 from ..types import Point, normalize_key
 from ._portal_helpers import char_to_keysym, portal_request
 
+# Linux evdev button codes (linux/input-event-codes.h). The RemoteDesktop
+# portal's NotifyPointerButton expects these, NOT the 1/2/3 API constants.
+EVDEV_BUTTON_MAP = {
+    1: 0x110,  # BTN_LEFT
+    2: 0x112,  # BTN_MIDDLE
+    3: 0x111,  # BTN_RIGHT
+}
+
 # Initialize GStreamer
 Gst.init(None)
 
@@ -252,8 +260,12 @@ class UnifiedRemoteDesktop:
             self._notify_pointer_motion_absolute(point.x, point.y)
             time.sleep(delay)
             self._notify_pointer_button(button, pressed=True)
-            time.sleep(delay)
+            # GTK4 gesture recognizers need a measurable hold between press
+            # and release; a <10ms gap can be dropped as noise/degenerate
+            # click (measured live: sidebar item selected but not activated).
+            time.sleep(max(delay, 0.08))
             self._notify_pointer_button(button, pressed=False)
+            time.sleep(delay)
             try:
                 return int(GLib.get_monotonic_time() * 1000)
             except Exception:
@@ -349,7 +361,14 @@ class UnifiedRemoteDesktop:
         if not self._initialized:
             raise RuntimeError("Not initialized")
 
-        keys = [normalize_key(k) for k in keys]
+        has_shift = any(normalize_key(k) == "Shift" for k in keys)
+        normalized_keys = []
+        for k in keys:
+            nk = normalize_key(k)
+            if len(nk) == 1 and nk.isupper() and not has_shift:
+                nk = nk.lower()
+            normalized_keys.append(nk)
+        keys = normalized_keys
         delay = self._pause if self._pause > 0 else 0.05
 
         try:
@@ -1182,6 +1201,12 @@ class UnifiedRemoteDesktop:
                         "source_type": source_type,
                     }
 
+        if results and "restore_token" in results:
+            rt = results["restore_token"]
+            if hasattr(rt, "get_string"):
+                rt = rt.get_string()
+            self._save_token(str(rt))
+
 
     def _load_token(self) -> Optional[str]:
         """Load restore token from disk"""
@@ -1243,7 +1268,14 @@ class UnifiedRemoteDesktop:
     # ==================== Private Input Methods ====================
 
     def _notify_pointer_motion_absolute(self, x: float, y: float) -> None:
-        """Send absolute pointer motion event via RemoteDesktop portal"""
+        """
+        Send absolute pointer motion event via RemoteDesktop portal.
+
+        Primary signature is (oa{sv}udd) with the stream node id. The legacy
+        (oa{sv}dd) fallback only applies when the portal rejects the SIGNATURE
+        itself; permission/session errors must propagate immediately so the
+        caller sees the real problem (dead session, revoked grant, etc.).
+        """
         options = {}
         stream_id = getattr(self, "_pipewire_node", 0) or 0
         try:
@@ -1258,6 +1290,7 @@ class UnifiedRemoteDesktop:
                 None,
             )
         except Exception:
+            # Fallback to legacy signature without stream-id parameter
             try:
                 self._portal.call_sync(
                     "NotifyPointerMotionAbsolute",
@@ -1269,6 +1302,7 @@ class UnifiedRemoteDesktop:
                     -1,
                     None,
                 )
+                return
             except Exception as e_abs:
                 raise InputError(
                     f"Absolute pointer motion failed on portal: {e_abs}"
@@ -1290,13 +1324,22 @@ class UnifiedRemoteDesktop:
 
 
     def _notify_pointer_button(self, button: int, pressed: bool) -> None:
-        """Send pointer button event"""
+        """
+        Send pointer button event.
+
+        The RemoteDesktop portal expects Linux EVDEV button codes
+        (linux/input-event-codes.h): BTN_LEFT=0x110, BTN_RIGHT=0x111,
+        BTN_MIDDLE=0x112. High-level constants (BUTTON_LEFT=1 etc.) are
+        mapped; values >= 0x100 pass through as already-evdev.
+        """
         options = {}
         state = 1 if pressed else 0
+        evdev_code = EVDEV_BUTTON_MAP.get(button, button if button >= 0x100 else 0x110)
         self._portal.call_sync(
             "NotifyPointerButton",
             GLib.Variant(
-                "(oa{sv}iu)", (self._session_handle, options, int(button), int(state))
+                "(oa{sv}iu)",
+                (self._session_handle, options, int(evdev_code), int(state)),
             ),
             Gio.DBusCallFlags.NONE,
             -1,

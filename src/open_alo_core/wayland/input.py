@@ -25,6 +25,13 @@ from ..exceptions import InputError, PermissionDenied, SessionError
 from ..types import Point, normalize_key
 from ._portal_helpers import char_to_keysym, portal_request
 
+# Linux evdev button codes - see unified.py EVDEV_BUTTON_MAP note.
+EVDEV_BUTTON_MAP = {
+    1: 0x110,  # BTN_LEFT
+    2: 0x112,  # BTN_MIDDLE
+    3: 0x111,  # BTN_RIGHT
+}
+
 
 class WaylandInput:
     """
@@ -268,7 +275,14 @@ class WaylandInput:
         if not self._initialized:
             raise RuntimeError("Not initialized")
 
-        keys = [normalize_key(k) for k in keys]
+        has_shift = any(normalize_key(k) == "Shift" for k in keys)
+        normalized_keys = []
+        for k in keys:
+            nk = normalize_key(k)
+            if len(nk) == 1 and nk.isupper() and not has_shift:
+                nk = nk.lower()
+            normalized_keys.append(nk)
+        keys = normalized_keys
         delay = getattr(self, "_pause", 0.05) or 0.05
 
         try:
@@ -444,13 +458,15 @@ class WaylandInput:
 
 
     def _notify_pointer_button(self, button: int, pressed: bool) -> None:
-        """Send pointer button event"""
+        """Send pointer button event (mapped to evdev codes, see EVDEV_BUTTON_MAP)"""
         options = {}
         state = 1 if pressed else 0
+        evdev_code = EVDEV_BUTTON_MAP.get(button, button if button >= 0x100 else 0x110)
         self._portal.call_sync(
             "NotifyPointerButton",
             GLib.Variant(
-                "(oa{sv}iu)", (self._session_handle, options, int(button), int(state))
+                "(oa{sv}iu)",
+                (self._session_handle, options, int(evdev_code), int(state)),
             ),
             Gio.DBusCallFlags.NONE,
             -1,

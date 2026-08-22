@@ -260,10 +260,14 @@ class WindowManager:
         """
         windows = self.list_windows()
         query_lower = query.lower()
-
-        # First try wm_class (fast)
+        # First try wm_class and wm_class_instance (fast bidirectional check)
         for window in windows:
-            if query_lower in (window.wm_class or "").lower():
+            w_class = (window.wm_class or "").lower()
+            w_inst = (window.wm_class_instance or "").lower()
+            if (
+                (query_lower in w_class or (w_class and w_class in query_lower))
+                or (query_lower in w_inst or (w_inst and w_inst in query_lower))
+            ):
                 return window
 
         # Then try titles if enabled
@@ -292,8 +296,13 @@ class WindowManager:
         matches = []
 
         for window in windows:
-            if query_lower in (window.wm_class or "").lower() or (
-                match_title and query_lower in (window.title or "").lower()
+            w_class = (window.wm_class or "").lower()
+            w_inst = (window.wm_class_instance or "").lower()
+            w_title = (window.title or "").lower()
+            if (
+                (query_lower in w_class or (w_class and w_class in query_lower))
+                or (query_lower in w_inst or (w_inst and w_inst in query_lower))
+                or (match_title and query_lower in w_title)
             ):
                 matches.append(window)
 
