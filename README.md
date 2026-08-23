@@ -1,9 +1,9 @@
 <div align="center">
 
-# <img src="assets/logo_icon.svg" width="36" height="36" alt=""> Open ALO
+# <img src="assets/logo_icon.svg" width="36" height="36" alt=""> Open ALO Core
 
-**Desktop Automation for Linux**
-*Single permission • Real-time capture • Full control*
+**High-Performance Wayland Desktop Automation SDK for Linux & Autonomous AI Agents**  
+*Single Permission • Real-Time PipeWire Streaming • Deterministic Input Injection • Zero AI/ML Dependencies*
 
 </div>
 
@@ -12,98 +12,81 @@
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.10+-3776ab?logo=python&logoColor=white" alt="Python"></a>
   <a href="https://wayland.freedesktop.org/"><img src="https://img.shields.io/badge/Wayland-Native-ffbc00?logo=wayland&logoColor=black" alt="Wayland"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License"></a>
+  <img src="https://img.shields.io/badge/Tests-328%20Passed-success" alt="Tests">
 </p>
 
 <p align="center">
+  <a href="#overview">Overview</a> •
+  <a href="#architectural-highlights">Architecture</a> •
   <a href="#installation">Installation</a> •
   <a href="#quick-start">Quick Start</a> •
-  <a href="#features">Features</a> •
-  <a href="API_REFERENCE.md">API Reference</a> •
-  <a href="#examples">Examples</a>
+  <a href="#api-reference">API Surface</a> •
+  <a href="#examples">Examples</a> •
+  <a href="#contributing">Contributing</a>
 </p>
 
 ---
 
-> *"ALO" means "light" in Bengali — dedicated to my grandmother, whom we lovingly called Alo.*
+> *"ALO" translates to "light" in Bengali — dedicated to the memory of my grandmother, whom we affectionately called Alo.*
 
 ---
 
-## Why Open ALO?
+## Overview
 
-Most Linux automation tools require **multiple permission dialogs** or don't work on Wayland at all. Open ALO uses the **RemoteDesktop Portal** — the same approach as RustDesk and TeamViewer — to provide:
+**`open_alo_core`** is a standalone, lightweight, and hardware-near desktop automation substrate engineered specifically for modern Linux Wayland environments. Built on top of the **XDG Desktop Portal (`org.freedesktop.portal.RemoteDesktop`)** and **PipeWire / GStreamer**, it unifies screen capture and pointer/keyboard control under a **single user permission dialog**.
+
+Designed with zero AI/ML dependencies, `open_alo_core` serves as the rock-solid foundation for desktop robotics, GUI automation frameworks, remote control servers, and visual RL/LLM agents.
+
+---
+
+## Architectural Highlights
 
 <table>
 <tr>
-<td width="50%">
+<td width="50%" valign="top">
 
-**One Permission Dialog**
+### 🔐 Unified Single-Permission Model
+Traditional Wayland automation tools require separate permissions for ScreenCast and Input injection, disrupting automated workflows. `open_alo_core` acquires a single joint session handle with persistent restore tokens:
 ```python
-with UnifiedRemoteDesktop() as remote:
-    remote.initialize()  # ← Single approval
+from open_alo_core import UnifiedRemoteDesktop, Point
 
-    # Everything available:
-    remote.capture_screenshot()
-    remote.click(Point(100, 200))
-    remote.type_text("Hello!")
+with UnifiedRemoteDesktop() as desktop:
+    desktop.initialize(persist_mode=2, enable_capture=True)
+    obs = desktop.capture_observation()
+    desktop.click(Point(500, 300))
+    desktop.type_text("Hello from Wayland!")
 ```
 
 </td>
-<td width="50%">
+<td width="50%" valign="top">
 
-**Old Approach (Two Dialogs)**
-```python
-with WaylandInput() as input:
-    input.initialize()  # Dialog 1
-    with WaylandCapture() as capture:
-        capture.initialize()  # Dialog 2
-        # Finally can use both...
-```
+### 🪟 GNOME Shell Window Management
+Direct D-Bus integration with GNOME Shell provides deterministic window lifecycle control without legacy X11 hacks:
+- Window discovery by PID, `wm_class`, or title.
+- Real-time z-order stacking inspection.
+- Window activation, focus raising, and geometry manipulation (`move_resize`, `maximize`, `minimize`).
+- Standalone noise/utility window filtering (`is_utility_window`).
 
 </td>
 </tr>
-</table>
-
----
-
-## Features
-
-| Feature                   | Description                                    |
-| ------------------------- | ---------------------------------------------- |
-| 🖥️ **Screen Capture**      | Real-time streaming via PipeWire + Screenshots |
-| 🖱️ **Mouse Control**       | Click, move, scroll at any coordinate          |
-| ⌨️ **Keyboard Input**      | Type text, press keys, execute shortcuts       |
-| 🪟 **Window Management**   | Find, focus, move windows (GNOME)              |
-| 🔐 **Single Permission**   | One dialog for everything                      |
-| 💾 **Persistent Sessions** | Approve once, run forever                      |
-| 🐍 **Type-Safe**           | Full type hints for modern Python              |
-
----
-
-## Requirements
-
-<table>
 <tr>
-<td>
+<td width="50%" valign="top">
 
-**Platform**
-- Linux with Wayland
-- GNOME, KDE Plasma, or Sway
-- X11 is **not supported**
-
-</td>
-<td>
-
-**Python**
-- Python 3.10+
-- PyGObject
-- GStreamer 1.0
+### 📐 Typed Stream Geometry
+The `StreamGeometry` dataclass encapsulates capture stream properties, multi-monitor origins, scaling factors, and boundary transformations:
+- `rect`: Global stream bounding box.
+- `is_in_stream(rect)`: Strict viewport intersection check.
+- `clamp_to_stream(rect)`: Multi-monitor bounding box containment.
+- `stream_to_global_point(pt)` / `global_to_stream_point(pt)`: Seamless coordinate space translation.
 
 </td>
-<td>
+<td width="50%" valign="top">
 
-**Window Management**
-- GNOME Shell only
-- [Window Calls extension](https://extensions.gnome.org/extension/4724/window-calls/)
+### 🛡️ Pure Geometric Preflight
+The `GeometricPreflight` validator enforces coordinate integrity and spatial occlusion safety before any hardware input injection:
+- Fail-closed out-of-bounds rejection.
+- Sentinel value protection (e.g., `-2147483648`).
+- Real-time z-order occlusion analysis against overlapping foreground windows.
 
 </td>
 </tr>
@@ -113,161 +96,153 @@ with WaylandInput() as input:
 
 ## Installation
 
-```bash
-# System dependencies (Ubuntu/Debian)
-sudo apt install python3-gi python3-gi-cairo \
-    gir1.2-gst-plugins-base-1.0 gstreamer1.0-pipewire \
-    xdg-desktop-portal xdg-desktop-portal-gnome
+### 1. System Dependencies (Ubuntu / Debian)
 
-# Install from PyPI
+```bash
+sudo apt update
+sudo apt install -y \
+    python3-gi \
+    python3-gi-cairo \
+    gir1.2-gst-plugins-base-1.0 \
+    gstreamer1.0-pipewire \
+    gstreamer1.0-plugins-base \
+    gstreamer1.0-plugins-good \
+    xdg-desktop-portal \
+    xdg-desktop-portal-gnome
+```
+
+### 2. Python Package Installation
+
+```bash
 pip install open-alo-core
 ```
 
-<details>
-<summary><strong>Window Management Setup (GNOME only)</strong></summary>
+*Or install from source in editable mode:*
+```bash
+git clone https://github.com/JonyBepary/VisualAgent.git
+cd VisualAgent/OPEN_ALO
+pip install -e .
+```
 
-1. Install [Window Calls extension](https://extensions.gnome.org/extension/4724/window-calls/)
-2. Enable it:
-   ```bash
-   gnome-extensions enable window-calls@domandoman.github.com
-   ```
+### 3. Window Management Extension (Optional, GNOME Shell)
 
-</details>
+For advanced window placement and z-order inspection, install and enable the [Window Calls](https://extensions.gnome.org/extension/4724/window-calls/) extension:
+```bash
+gnome-extensions enable window-calls@domandoman.github.com
+```
 
 ---
 
 ## Quick Start
 
+### Basic Desktop Interaction
+
 ```python
-from open_alo_core import UnifiedRemoteDesktop, WindowManager, Point
+from open_alo_core import UnifiedRemoteDesktop, Point, normalize_key
 
-# Initialize with single permission dialog
-with UnifiedRemoteDesktop() as remote:
-    remote.initialize(persist_mode=2, enable_capture=True)
+with UnifiedRemoteDesktop() as desktop:
+    # Initialize joint input + capture session
+    desktop.initialize(persist_mode=2, enable_capture=True)
 
-    # Capture screen
-    screenshot = remote.capture_screenshot()
-    width, height = remote.get_screen_size()
+    # 1. Capture observation with lockstep timestamp
+    obs = desktop.capture_observation()
+    png_bytes = obs["png"]
+    timestamp_ns = obs["timestamp_ns"]
+    stream_geom = obs["stream_info"]  # StreamGeometry instance
 
-    # Control input
-    remote.click(Point(500, 300))
-    remote.type_text("Automated with Open ALO!")
-    remote.key_combo(["ctrl", "s"])
+    # 2. Pointer operations
+    desktop.click(Point(640, 480))
+    desktop.double_click(Point(640, 480))
 
-# Window management
-wm = WindowManager()
-window = wm.find_window("Firefox")
-wm.activate(window.id)
+    # 3. Keyboard input
+    desktop.type_text("Autonomous Linux Automation")
+    desktop.key_combo(["Control", "s"])
 ```
+
+### Window Management & Occlusion Preflight
+
+```python
+from open_alo_core import WindowManager, GeometricPreflight, Point
+
+wm = WindowManager()
+preflight = GeometricPreflight()
+
+# Locate application window
+editor = wm.find_window("Text Editor")
+if editor:
+    # Raise and focus target window
+    wm.activate(editor.id)
+    wm.move_resize(editor.id, x=100, y=100, width=1280, height=800)
+
+    # Query desktop z-order and window rects
+    z_order = wm.get_window_z_order()
+    window_rects = {w.id: wm.get_frame_rect(w.id) for w in wm.list_windows()}
+
+    # Verify target point is not occluded by a foreground window
+    target_pt = Point(250, 250)
+    verdict = preflight.verify_point_occlusion(target_pt, editor.id, window_rects, z_order)
+    if verdict.is_safe:
+        print("Target point is clear for interaction.")
+```
+
+---
+
+## API Reference
+
+### Core Modules & Exports
+
+| Class / Function | Module | Description |
+|---|---|---|
+| **`UnifiedRemoteDesktop`** | `open_alo_core.wayland.unified` | Primary unified interface for PipeWire video streaming, screenshot acquisition, and Wayland input injection. |
+| **`StreamGeometry`** | `open_alo_core.types` | Immutable dataclass defining stream dimensions, logical scaling, origin offsets, and coordinate translation. |
+| **`GeometricPreflight`** | `open_alo_core.preflight` | Low-level geometric preflight verifier for coordinate boundary checks and z-order window occlusion. |
+| **`WindowManager`** | `open_alo_core.window_manager` | GNOME Shell D-Bus interface for window discovery, geometry manipulation, activation, and z-order inspection. |
+| **`is_utility_window`** | `open_alo_core.window_manager` | Standalone predicate identifying desktop background actors, XWayland dummies, and noise windows. |
+| **`AffineTransform2D`** | `open_alo_core.geometry` | 2D affine mapping matrix for calibrating between AT-SPI accessibility coordinate spaces and OS screen pixels. |
+| **`Point`**, **`Rect`**, **`Size`** | `open_alo_core.types` | Zero-overhead immutable geometric primitives with containment and centering helpers. |
 
 ---
 
 ## Examples
 
-| Example                                                                   | Description                     |
-| ------------------------------------------------------------------------- | ------------------------------- |
-| [`unified_minimal.py`](examples/unified_minimal.py)                       | Quick start in 20 lines         |
-| [`unified_ai_agent_demo.py`](examples/unified_ai_agent_demo.py)           | Full AI agent workflow          |
-| [`unified_debug.py`](examples/unified_debug.py)                           | Debug with verbose error traces |
-| [`window_management_demo.py`](examples/window_management_demo.py)         | List, activate, move, resize    |
-| [`show_desktop_ui_tree.py`](examples/show_desktop_ui_tree.py)             | Desktop overview with positions |
-| [`show_desktop_ui_tree_advanced.py`](examples/show_desktop_ui_tree_advanced.py) | AT-SPI accessibility tree       |
+The [`examples/`](examples/) directory contains standalone, runnable demonstration scripts:
+
+- [`examples/unified_minimal.py`](examples/unified_minimal.py): Minimal 20-line single-permission script.
+- [`examples/window_management_demo.py`](examples/window_management_demo.py): Window discovery, activation, and layout placement.
+- [`examples/unified_ai_agent_demo.py`](examples/unified_ai_agent_demo.py): Mock perception-action agent loop.
+- [`examples/show_desktop_ui_tree.py`](examples/show_desktop_ui_tree.py): Desktop window hierarchy overview.
+
+---
+
+## Verification & Testing
+
+The `open_alo_core` test suite includes unit tests, integration mocks, and invariant checkers:
 
 ```bash
-# Start here
-python3 examples/unified_minimal.py
+pytest tests/ -v
 ```
 
----
-
-## AI Agent Integration
-
-```python
-from open_alo_core import UnifiedRemoteDesktop, Point
-
-with UnifiedRemoteDesktop() as remote:
-    remote.initialize(persist_mode=2, enable_capture=True)
-
-    while running:
-        frame = remote.get_frame()           # Get screen
-        action = ai_model.decide(frame)      # AI decides
-
-        if action.type == "click":
-            remote.click(Point(action.x, action.y))
-        elif action.type == "type":
-            remote.type_text(action.text)
 ```
-
----
-
-## Documentation
-
-| Document                                           | Description                   |
-| -------------------------------------------------- | ----------------------------- |
-| [API Reference](API_REFERENCE.md)                  | Complete method documentation |
-| [Quick Reference](docs/UNIFIED_QUICK_REFERENCE.md) | Common patterns               |
-| [Migration Guide](docs/MIGRATION_TO_UNIFIED.md)    | Upgrade from legacy API       |
-| [Troubleshooting](TROUBLESHOOTING.md)              | Common issues and solutions   |
-| [Architecture](architecture/)                      | Implementation details        |
-
----
-
-## Project Structure
-
-```
-open-alo/
-├── src/open_alo_core/     # Core SDK
-│   ├── wayland/           # Portal implementations
-│   │   └── unified.py     # UnifiedRemoteDesktop
-│   ├── window_manager.py  # GNOME window control
-│   └── types.py           # Point, Size, Rect, WindowInfo
-├── examples/              # Working examples
-├── docs/                  # User documentation
-└── architecture/          # Technical documentation
+============================= 328 passed in 3.88s ==============================
 ```
 
 ---
 
 ## Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-```bash
-git clone https://github.com/JonyBepary/Open-ALO.git
-cd Open-ALO
-pip install -e .
-```
+We welcome contributions, issues, and pull requests. Please refer to [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines and code standards.
 
 ---
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-## Acknowledgments
+<div align="center">
 
-- **RustDesk** — Inspiration for single-permission architecture
-- **XDG Portals** — Secure Wayland integration
-- **PipeWire** — Modern Linux multimedia
-- **GNOME Project** — Window management APIs
+*Dedicated in loving memory of my maternal grandmother, **Alo** (আভা).*  
+*Rest in peace, Nani.*
 
----
-
-<p align="center">
-  <em>
-    This project is dedicated to my maternal grandmother, <strong>Alo</strong> — whose name means "light" in Bengali.
-  </em>
-</p>
-
-<p align="center">
-  <em>
-    She did so much for me throughout my life. After losing her, I realized what I had lost.<br>
-    The only thing I'm good at is coding — so this project is my dedication to her memory.
-  </em>
-</p>
-
-<p align="center">
-  <strong>Rest in peace, Nani.</strong>
-</p>
+</div>
