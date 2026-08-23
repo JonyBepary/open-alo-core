@@ -1,25 +1,23 @@
-# Open ALO
+# Open ALO Core
 
-**Desktop Automation for Linux**
+**High-Performance Wayland Desktop Automation SDK for Linux & Autonomous AI Agents**
 
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-Linux-green.svg)](https://www.linux.org/)
 [![Wayland](https://img.shields.io/badge/Wayland-Native-brightgreen.svg)](https://wayland.freedesktop.org/)
 [![License](https://img.shields.io/badge/license-MIT-yellow.svg)](./LICENSE)
-[![PyPI](https://img.shields.io/badge/PyPI-v0.1.0-orange.svg)](https://pypi.org/project/open-alo-core/)
+[![PyPI](https://img.shields.io/pypi/v/open-alo-core?color=orange&label=PyPI)](https://pypi.org/project/open-alo-core/)
 
-Desktop automation library for Linux with **one permission dialog** for both screen capture and input control. Perfect for AI agents, RPA, and testing.
+Desktop automation SDK for Linux Wayland with **one permission dialog** for both real-time PipeWire screen capture and deterministic input control.
 
-## ✨ Features
+## ✨ Core Features
 
-- ✅ **Single Permission Dialog** - One approval for input + capture (RustDesk-style)
-- ✅ **Real-time Screen Streaming** - Live frames via PipeWire
-- ✅ **Full Input Control** - Mouse, keyboard, shortcuts
-- ✅ **Window Management** - Find, activate, control windows (GNOME)
-- ✅ **Persistent Sessions** - Approve once, run forever
-- ✅ **Wayland Native** - XDG Portals, PipeWire, GStreamer
-- ✅ **Type-Safe** - Full type hints
-- ✅ **Zero ML Dependencies** - Pure hardware abstraction
+- ✅ **Single Permission Substrate** - Joint authorization for input injection + PipeWire capture via `org.freedesktop.portal.RemoteDesktop`.
+- ✅ **Typed Stream Geometry** - `StreamGeometry` with multi-monitor offset handling, bounding box clamping, and coordinate transformations.
+- ✅ **Geometric Preflight Safety** - `GeometricPreflight` for out-of-bounds sentinel rejection and z-order window occlusion validation.
+- ✅ **GNOME Shell Window Control** - Find, activate, move, resize, stack (z-order), full-screen, and keep-on-top window operations.
+- ✅ **Sub-Pixel Coordinate Calibration** - `AffineTransform2D` least-squares affine solver for AT-SPI accessibility coordinate mapping.
+- ✅ **Zero AI/ML Dependencies** - Hardware-near Python abstraction.
 
 ## 🚀 Quick Start
 
@@ -27,7 +25,7 @@ Desktop automation library for Linux with **one permission dialog** for both scr
 
 ```bash
 # System dependencies (Ubuntu/Debian)
-sudo apt install \
+sudo apt install -y \
     python3-gi \
     python3-gi-cairo \
     gir1.2-gst-plugins-base-1.0 \
@@ -39,104 +37,54 @@ sudo apt install \
 pip install open-alo-core
 ```
 
-**For Window Management (GNOME only):**
-1. Install [Window Calls extension](https://extensions.gnome.org/extension/4724/window-calls/) from browser
-2. Enable it: `gnome-extensions enable window-calls@domandoman.github.com`
-
 ### Basic Usage
 
 ```python
 from open_alo_core import UnifiedRemoteDesktop, Point
 
-# ONE permission dialog for everything!
-with UnifiedRemoteDesktop() as remote:
-    remote.initialize(persist_mode=2, enable_capture=True)
+# Single permission dialog initializes both input & screencast
+with UnifiedRemoteDesktop() as desktop:
+    desktop.initialize(persist_mode=2, enable_capture=True)
 
-    # Screen capture
-    screenshot = remote.capture_screenshot()  # PNG bytes
-    frame = remote.get_frame()                # Live frame
-    width, height = remote.get_screen_size()
+    # Observation capture
+    obs = desktop.capture_observation()
+    png_bytes = obs["png"]
+    stream_geom = obs["stream_info"]  # StreamGeometry instance
 
-    # Input control
-    remote.click(Point(500, 500))
-    remote.type_text("Hello World!\n")
-    remote.key_combo(["ctrl", "c"])
+    # Input injection
+    desktop.click(Point(500, 300))
+    desktop.type_text("Autonomous Linux Automation")
+    desktop.key_combo(["Control", "s"])
 ```
 
-### Window Management (GNOME)
+### Window Management & Occlusion Preflight
 
 ```python
-from open_alo_core import WindowManager
+from open_alo_core import WindowManager, GeometricPreflight, Point
 
 wm = WindowManager()
+preflight = GeometricPreflight()
+
 editor = wm.find_window("Text Editor")
-wm.activate(editor.id)
-wm.maximize(editor.id)
+if editor:
+    wm.activate(editor.id)
+    wm.make_above(editor.id)
+
+    z_order = wm.get_window_z_order()
+    window_rects = {w.id: wm.get_frame_rect(w.id) for w in wm.list_windows()}
+
+    verdict = preflight.verify_point_occlusion(Point(200, 200), editor.id, window_rects, z_order)
+    if verdict.is_safe:
+        print("Target coordinate is clear of occlusion.")
 ```
 
 ## 📋 System Requirements
 
-- **OS**: Linux with Wayland (GNOME, KDE, Sway)
+- **OS**: Linux with Wayland (GNOME, KDE Plasma, Sway)
 - **Python**: 3.10+
-- **Dependencies**: PyGObject, GStreamer 1.0, PipeWire
-- **Window Management**: GNOME Shell + [Window Calls extension](https://extensions.gnome.org/extension/4724/window-calls/)
-
-**Tested on:**
-- Ubuntu 25.10 (Questing), Wayland + GNOME/Unity
-- Window Calls extension v13+
-
-## 📚 Documentation
-
-- [**API Reference**](https://github.com/JonyBepary/Open-ALO/blob/main/API_REFERENCE.md) - Complete API documentation
-- [**Quick Reference**](https://github.com/JonyBepary/Open-ALO/blob/main/docs/UNIFIED_QUICK_REFERENCE.md) - Common patterns
-- [**Examples**](https://github.com/JonyBepary/Open-ALO/tree/main/examples/) - Working code examples
-- [**Migration Guide**](https://github.com/JonyBepary/Open-ALO/blob/main/docs/MIGRATION_TO_UNIFIED.md) - Upgrade from legacy
-
-## 🎯 Use Cases
-
-- **AI Agents** - Screen understanding + autonomous control
-- **RPA** - Robotic process automation
-- **Testing** - UI testing and automation
-- **Monitoring** - Screenshot capture and analysis
-- **Remote Control** - Desktop automation over network
-
-## 🏗️ Architecture
-
-```
-UnifiedRemoteDesktop
-├── RemoteDesktop Portal (org.freedesktop.portal.RemoteDesktop)
-│   ├── Input Control (keyboard, mouse)
-│   └── Inherits ScreenCast (screen capture)
-├── PipeWire (real-time streaming)
-└── GStreamer (frame processing)
-
-WindowManager
-└── Window Calls Extension (GNOME D-Bus)
-```
-
-## 🔒 Security
-
-- Uses XDG Desktop Portals (sandboxed)
-- Permission dialogs via system compositor
-- Persistent tokens stored in `~/.config/open_alo_core/`
-- No root required
+- **Compositor Support**: XDG Desktop Portals + PipeWire
+- **Window Management**: GNOME Shell + [window-actions extension](https://github.com/JonyBepary/window-actions)
 
 ## 📄 License
 
-MIT License - See [LICENSE](LICENSE) file
-
-## 🤝 Contributing
-
-Contributions welcome! Please read [CONTRIBUTING.md](https://github.com/JonyBepary/Open-ALO/blob/main/CONTRIBUTING.md) for guidelines.
-
-## 🐛 Issues
-
-Report bugs at: https://github.com/JonyBepary/Open-ALO/issues
-
-## 🌟 Credits
-
-Developed by OPEN_ALO Contributors
-
----
-
-**Repository**: https://github.com/JonyBepary/Open-ALO
+MIT License — see [LICENSE](LICENSE)

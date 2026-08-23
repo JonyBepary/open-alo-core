@@ -60,6 +60,11 @@ class WindowInfo:
     focus: bool = False
     in_current_workspace: bool = False
     maximized: int = 0
+    fullscreen: Optional[bool] = None
+    minimized: Optional[bool] = None
+    maximized_horizontally: Optional[bool] = None
+    maximized_vertically: Optional[bool] = None
+    above: Optional[bool] = None
 
     def __repr__(self):
         title_str = self.title if len(self.title) <= 30 else f"{self.title[:27]}..."
@@ -255,6 +260,11 @@ class WindowManager:
                     focus=data.get("focus", False),
                     in_current_workspace=data.get("in_current_workspace", False),
                     maximized=data.get("maximized", 0),
+                    fullscreen=data.get("fullscreen"),
+                    minimized=data.get("minimized"),
+                    maximized_horizontally=data.get("maximized_horizontally"),
+                    maximized_vertically=data.get("maximized_vertically"),
+                    above=data.get("above"),
                 )
             )
 
@@ -576,6 +586,40 @@ class WindowManager:
             return self.unmake_fullscreen(window_id)
         return self.make_fullscreen(window_id)
 
+    def make_above(self, window_id: int) -> bool:
+        """
+        Set window to stay always-on-top (above other normal windows).
+
+        Args:
+            window_id: Window ID
+
+        Returns:
+            True if successful
+
+        Example:
+            >>> wm = WindowManager()
+            >>> wm.make_above(window.id)
+        """
+        response = self._dbus_call("MakeAbove", window_id)
+        return response is not None
+
+    def unmake_above(self, window_id: int) -> bool:
+        """
+        Remove always-on-top state from a window.
+
+        Args:
+            window_id: Window ID
+
+        Returns:
+            True if successful
+
+        Example:
+            >>> wm = WindowManager()
+            >>> wm.unmake_above(window.id)
+        """
+        response = self._dbus_call("UnmakeAbove", window_id)
+        return response is not None
+
 
     # ==================== Window Positioning ====================
 
@@ -734,4 +778,76 @@ def wait_for_window(
     """Convenience function to wait for a window to appear"""
     wm = WindowManager()
     return wm.wait_for_window(query, match_title=match_title, timeout=timeout, poll_interval=poll_interval)
+
+
+def make_window_above(query_or_id, **kwargs) -> bool:
+    """
+    Convenience function to set a window always-on-top.
+
+    Args:
+        query_or_id: Window ID (int) or search query (str)
+        **kwargs: Additional args for find_window if query is str
+
+    Returns:
+        True if successful
+    """
+    wm = WindowManager()
+    if isinstance(query_or_id, int):
+        return wm.make_above(query_or_id)
+    window = wm.find_window(query_or_id, **kwargs)
+    return wm.make_above(window.id) if window else False
+
+
+def unmake_window_above(query_or_id, **kwargs) -> bool:
+    """
+    Convenience function to remove always-on-top state from a window.
+
+    Args:
+        query_or_id: Window ID (int) or search query (str)
+        **kwargs: Additional args for find_window if query is str
+
+    Returns:
+        True if successful
+    """
+    wm = WindowManager()
+    if isinstance(query_or_id, int):
+        return wm.unmake_above(query_or_id)
+    window = wm.find_window(query_or_id, **kwargs)
+    return wm.unmake_above(window.id) if window else False
+
+
+def make_window_fullscreen(query_or_id, **kwargs) -> bool:
+    """
+    Convenience function to make a window fullscreen.
+
+    Args:
+        query_or_id: Window ID (int) or search query (str)
+        **kwargs: Additional args for find_window if query is str
+
+    Returns:
+        True if successful
+    """
+    wm = WindowManager()
+    if isinstance(query_or_id, int):
+        return wm.make_fullscreen(query_or_id)
+    window = wm.find_window(query_or_id, **kwargs)
+    return wm.make_fullscreen(window.id) if window else False
+
+
+def unmake_window_fullscreen(query_or_id, **kwargs) -> bool:
+    """
+    Convenience function to exit fullscreen for a window.
+
+    Args:
+        query_or_id: Window ID (int) or search query (str)
+        **kwargs: Additional args for find_window if query is str
+
+    Returns:
+        True if successful
+    """
+    wm = WindowManager()
+    if isinstance(query_or_id, int):
+        return wm.unmake_fullscreen(query_or_id)
+    window = wm.find_window(query_or_id, **kwargs)
+    return wm.unmake_fullscreen(window.id) if window else False
 

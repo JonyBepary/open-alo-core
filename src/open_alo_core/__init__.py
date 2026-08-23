@@ -27,6 +27,10 @@ __all__ = [
     "list_windows",
     "activate_window",
     "wait_for_window",
+    "make_window_above",
+    "unmake_window_above",
+    "make_window_fullscreen",
+    "unmake_window_fullscreen",
     # Types & Geometry
     "Point",
     "Size",
@@ -118,6 +122,10 @@ from .window_manager import (
     get_window_z_order,
     is_utility_window,
     list_windows,
+    make_window_above,
+    make_window_fullscreen,
+    unmake_window_above,
+    unmake_window_fullscreen,
     wait_for_window,
 )
 

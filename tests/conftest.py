@@ -36,6 +36,11 @@ _gio.DBusCallFlags.NONE = 0
 _gio.DBusConnection = MagicMock
 _gio.DBusProxy = MagicMock
 _gio.DBusProxy.new_sync = MagicMock(return_value=MagicMock())
+_bus_mock = MagicMock()
+_call_sync_result = MagicMock()
+_call_sync_result.get_child_value.return_value.get_boolean.return_value = True
+_bus_mock.call_sync.return_value = _call_sync_result
+_gio.bus_get_sync = MagicMock(return_value=_bus_mock)
 
 class _MockVariantMeta(type):
     def __init__(cls, name, bases, dct):

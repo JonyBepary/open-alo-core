@@ -80,6 +80,11 @@ class TestWindowInfo:
             "focus",
             "in_current_workspace",
             "maximized",
+            "fullscreen",
+            "minimized",
+            "maximized_horizontally",
+            "maximized_vertically",
+            "above",
         }
         assert fields == expected
 
@@ -325,6 +330,8 @@ class TestWindowManagerActions:
             ("close", "Close", (100,)),
             ("make_fullscreen", "MakeFullscreen", (100,)),
             ("unmake_fullscreen", "UnmakeFullscreen", (100,)),
+            ("make_above", "MakeAbove", (100,)),
+            ("unmake_above", "UnmakeAbove", (100,)),
             ("move", "Move", (100, 10, 20)),
             ("resize", "Resize", (100, 800, 600)),
             ("move_resize", "MoveResize", (100, 10, 20, 800, 600)),
@@ -428,6 +435,22 @@ class TestWindowManagerConvenienceFunctions:
 
         with patch.object(open_alo_core.WindowManager, "find_window", return_value=None):
             assert open_alo_core.activate_window("nonexistent") is False
+
+        with patch.object(open_alo_core.WindowManager, "make_above", return_value=True) as mock_above:
+            assert open_alo_core.make_window_above(42) is True
+            mock_above.assert_called_with(42)
+
+        with patch.object(open_alo_core.WindowManager, "unmake_above", return_value=True) as mock_unabove:
+            assert open_alo_core.unmake_window_above(42) is True
+            mock_unabove.assert_called_with(42)
+
+        with patch.object(open_alo_core.WindowManager, "make_fullscreen", return_value=True) as mock_fs:
+            assert open_alo_core.make_window_fullscreen(42) is True
+            mock_fs.assert_called_with(42)
+
+        with patch.object(open_alo_core.WindowManager, "unmake_fullscreen", return_value=True) as mock_unfs:
+            assert open_alo_core.unmake_window_fullscreen(42) is True
+            mock_unfs.assert_called_with(42)
 
 
 class TestWindowManagerErrorHandling:

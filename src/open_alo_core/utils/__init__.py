@@ -79,7 +79,7 @@ def is_portal_available() -> bool:
             None,
         )
         if result:
-            return result.get_child_value(0).get_boolean()
+            return bool(result.get_child_value(0).get_boolean())
         return False
     except Exception:
         return False
