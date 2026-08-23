@@ -473,6 +473,11 @@ class TestWindowManagerErrorHandling:
 class TestWindowManagerZOrder:
     """Tests for WindowManager.get_window_z_order and module convenience function."""
 
+    @pytest.fixture(autouse=True)
+    def setup(self, mock_subprocess):
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stdout = '(true, \'[]\')'
+
     def test_get_window_z_order_success(self):
         import open_alo_core
         from open_alo_core import WindowManager
@@ -511,6 +516,11 @@ class TestWindowManagerZOrder:
 
 class TestWindowManagerWaitForWindow:
     """Tests for WindowManager.wait_for_window and module convenience function."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, mock_subprocess):
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stdout = '(true, \'[]\')'
 
     def test_wait_for_window_found_immediately(self):
         import open_alo_core
