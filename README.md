@@ -1,6 +1,6 @@
 <div align="center">
 
-# <img src="assets/logo_icon.svg" width="36" height="36" alt=""> Open ALO Core
+# <img src="assets/logo_icon.svg" width="36" height="36" alt=""> open-alo-core
 
 **High-Performance Wayland Desktop Automation SDK for Linux & Autonomous AI Agents**  
 *Single Permission • Real-Time PipeWire Streaming • Deterministic Input Injection • Zero AI/ML Dependencies*
@@ -33,9 +33,9 @@
 
 ## Overview
 
-**`open_alo_core`** is a standalone, lightweight, and hardware-near desktop automation substrate engineered specifically for modern Linux Wayland environments. Built on top of the **XDG Desktop Portal (`org.freedesktop.portal.RemoteDesktop`)** and **PipeWire / GStreamer**, it unifies screen capture and pointer/keyboard control under a **single user permission dialog**.
+**`open-alo-core`** is a standalone, lightweight, and hardware-near desktop automation substrate engineered specifically for modern Linux Wayland environments. Built on top of the **XDG Desktop Portal (`org.freedesktop.portal.RemoteDesktop`)** and **PipeWire / GStreamer**, it unifies screen capture and pointer/keyboard control under a **single user permission dialog**.
 
-Designed with zero AI/ML dependencies, `open_alo_core` serves as the rock-solid foundation for desktop robotics, GUI automation frameworks, remote control servers, and visual RL/LLM agents.
+Designed with zero AI/ML dependencies, `open-alo-core` serves as the rock-solid foundation for desktop robotics, GUI automation frameworks, remote control servers, and visual RL/LLM agents.
 
 ---
 
@@ -46,7 +46,7 @@ Designed with zero AI/ML dependencies, `open_alo_core` serves as the rock-solid 
 <td width="50%" valign="top">
 
 ### 🔐 Unified Single-Permission Model
-Traditional Wayland automation tools require separate permissions for ScreenCast and Input injection, disrupting automated workflows. `open_alo_core` acquires a single joint session handle with persistent restore tokens:
+Traditional Wayland automation tools require separate permissions for ScreenCast and Input injection, disrupting automated workflows. `open-alo-core` acquires a single joint session handle with persistent restore tokens:
 ```python
 from open_alo_core import UnifiedRemoteDesktop, Point
 
@@ -218,7 +218,7 @@ The [`examples/`](examples/) directory contains 6 intentional, self-contained sh
 
 ## Verification & Testing
 
-The `open_alo_core` test suite includes unit tests, integration mocks, and invariant checkers:
+The `open-alo-core` test suite includes unit tests, integration mocks, and invariant checkers:
 
 ```bash
 pytest tests/ -v

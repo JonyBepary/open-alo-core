@@ -1,4 +1,4 @@
-# Open ALO Core
+# open-alo-core
 
 **High-Performance Wayland Desktop Automation SDK for Linux & Autonomous AI Agents**
 
