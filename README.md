@@ -242,9 +242,19 @@ This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-<div align="center">
+<p align="center">
+  <em>
+    This project is dedicated to my maternal grandmother, <strong>Alo</strong> — whose name means "light" in Bengali.
+  </em>
+</p>
 
-*Dedicated in loving memory of my maternal grandmother, **Alo** (আভা).*  
-*Rest in peace, Nani.*
+<p align="center">
+  <em>
+    She did so much for me throughout my life. After losing her, I realized what I had lost.<br>
+    The only thing I'm good at is coding — so this project is my dedication to her memory.
+  </em>
+</p>
 
-</div>
+<p align="center">
+  <strong>Rest in peace, Nani.</strong>
+</p>
