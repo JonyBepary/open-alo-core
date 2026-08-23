@@ -1,13 +1,13 @@
-# Contributing to Open-ALO
+# Contributing to open-alo-core
 
-Thank you for your interest in contributing to Open-ALO! 🎉
+Thank you for your interest in contributing to open-alo-core! 🎉
 
 ## Getting Started
 
 1. **Fork the repository**
    ```bash
-   git clone https://github.com/JonyBepary/Open-ALO.git
-   cd Open-ALO
+   git clone https://github.com/JonyBepary/open-alo-core.git
+   cd open-alo-core
    ```
 
 2. **Set up development environment**
@@ -113,8 +113,8 @@ python -m build
 
 ## Questions?
 
-- Open an [Issue](https://github.com/JonyBepary/Open-ALO/issues)
-- Check existing [Discussions](https://github.com/JonyBepary/Open-ALO/discussions)
+- Open an [Issue](https://github.com/JonyBepary/open-alo-core/issues)
+- Check existing [Discussions](https://github.com/JonyBepary/open-alo-core/discussions)
 
 ## License
 

@@ -286,7 +286,7 @@ If none of these solutions work:
    ```
 
 3. **File an issue**
-   - Visit: https://github.com/JonyBepary/Open-ALO/issues
+   - Visit: https://github.com/JonyBepary/open-alo-core/issues
    - Include: OS version, desktop environment, error messages, debug logs
 
 ---

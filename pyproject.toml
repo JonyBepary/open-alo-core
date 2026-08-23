@@ -49,11 +49,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/JonyBepary/Open-ALO"
-Documentation = "https://github.com/JonyBepary/Open-ALO/blob/main/API_REFERENCE.md"
-Repository = "https://github.com/JonyBepary/Open-ALO"
-Issues = "https://github.com/JonyBepary/Open-ALO/issues"
-Changelog = "https://github.com/JonyBepary/Open-ALO/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/JonyBepary/open-alo-core"
+Documentation = "https://github.com/JonyBepary/open-alo-core/blob/main/API_REFERENCE.md"
+Repository = "https://github.com/JonyBepary/open-alo-core"
+Issues = "https://github.com/JonyBepary/open-alo-core/issues"
+Changelog = "https://github.com/JonyBepary/open-alo-core/blob/main/CHANGELOG.md"
 
 [tool.isort]
 profile = "black"
