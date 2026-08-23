@@ -203,14 +203,16 @@ if editor:
 
 ---
 
-## Examples
+## Examples & Showcase Suite
 
-The [`examples/`](examples/) directory contains standalone, runnable demonstration scripts:
+The [`examples/`](examples/) directory contains 6 intentional, self-contained showcase modules:
 
-- [`examples/unified_minimal.py`](examples/unified_minimal.py): Minimal 20-line single-permission script.
-- [`examples/window_management_demo.py`](examples/window_management_demo.py): Window discovery, activation, and layout placement.
-- [`examples/unified_ai_agent_demo.py`](examples/unified_ai_agent_demo.py): Mock perception-action agent loop.
-- [`examples/show_desktop_ui_tree.py`](examples/show_desktop_ui_tree.py): Desktop window hierarchy overview.
+- [`examples/00_environment_doctor/`](examples/00_environment_doctor/): Zero-permission diagnostic probe for Wayland, portals, clocks, and geometry sanitization.
+- [`examples/01_unified_session_capture/`](examples/01_unified_session_capture/): Single-permission capture workflow (typed `StreamGeometry`, screenshots, live frames, and raw RGB).
+- [`examples/02_input_surface_tour/`](examples/02_input_surface_tour/): Full input injection surface with preflight-gated bounds and occlusion safety.
+- [`examples/03_window_orchestra/`](examples/03_window_orchestra/): Complete GNOME window management surface with z-order stacking, workspace migrations, and state restoration.
+- [`examples/04_calibration_workbench/`](examples/04_calibration_workbench/): Sub-pixel coordinate calibration, affine solving, and drift demotion policies.
+- [`examples/05_legacy_backends_compare/`](examples/05_legacy_backends_compare/): Feature and architecture comparison across Wayland capture and input backends.
 
 ---
 

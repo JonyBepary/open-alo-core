@@ -5,10 +5,6 @@ Six intentional, self-contained showcases. **Run one and you immediately see wha
 executes numbered steps with `[OK]/[SKIP]`, and ends with a
 `Capabilities demonstrated: N/M` scorecard.
 
-> Legacy flat scripts (`unified_minimal.py`, `window_management_demo.py`, …) are
-> kept at the bottom of this directory for history, but the numbered folders are
-> the maintained set.
-
 ## The Showcase Tour (run in order)
 
 | Folder | What you will see | Permissions | Headless test |
@@ -65,11 +61,3 @@ pytest examples/00_environment_doctor/
 
 Folders `00` and `04` run fully offline — start there if you just want to see the
 deterministic math layer work.
-
-## Legacy scripts (superseded)
-
-`unified_minimal.py`, `unified_debug.py`, `unified_ai_agent_demo.py`,
-`new_features_demo.py`, `window_management_demo.py`, `show_desktop_ui_tree*.py`
-predate the Aug-23 core API (typed `StreamGeometry`, calibration/preflight
-modules, `include_utility` filtering). They still run, but the numbered folders
-above are the canonical teaching set.
