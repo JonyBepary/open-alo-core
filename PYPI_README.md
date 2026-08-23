@@ -83,7 +83,7 @@ if editor:
 - **OS**: Linux with Wayland (GNOME, KDE Plasma, Sway)
 - **Python**: 3.10+
 - **Compositor Support**: XDG Desktop Portals + PipeWire
-- **Window Management**: GNOME Shell + [window-actions extension](https://github.com/JonyBepary/window-actions)
+- **Window Management**: GNOME Shell + [window-actions-alo extension](https://github.com/JonyBepary/window-actions-alo)
 
 ## 📄 License
 

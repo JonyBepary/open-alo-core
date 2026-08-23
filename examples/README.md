@@ -56,7 +56,7 @@ pytest examples/00_environment_doctor/
 
 * GNOME on Wayland + `xdg-desktop-portal-gnome`
 * GStreamer ≥1.22 with PipeWire plugin (`pipewiresrc`)
-* This repo's GNOME Shell extension: `make -C ../window-actions install` (folder 03)
+* This repo's GNOME Shell extension: `make -C ../window-actions-alo install` (folder 03)
 * Python deps: `PyGObject`, `gstreamer` bindings; tests additionally use `pytest`
 
 Folders `00` and `04` run fully offline — start there if you just want to see the

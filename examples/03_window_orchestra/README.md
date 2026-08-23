@@ -13,10 +13,10 @@ All window operations require the **window-actions** GNOME Shell extension (v1.1
 Install from the repository root:
 
 ```bash
-make -C window-actions install
+make -C window-actions-alo install
 # — or manually —
 # mkdir -p ~/.local/share/gnome-shell/extensions/window-actions@openalo.local
-# cp window-actions/extension.js window-actions/metadata.json ~/.local/share/gnome-shell/extensions/window-actions@openalo.local/
+# cp window-actions-alo/extension.js window-actions-alo/metadata.json ~/.local/share/gnome-shell/extensions/window-actions@openalo.local/
 ```
 
 Then restart GNOME Shell (logout/login or <kbd>Alt</kbd>+<kbd>F2</kbd> → `r` on X11) and enable the extension:
